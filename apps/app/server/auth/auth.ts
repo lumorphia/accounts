@@ -1,10 +1,12 @@
 import { randomBytes } from "node:crypto";
+import { PENDING_HANDLE_PREFIX } from "@lumorphia-accounts/core";
 import { betterAuth, type BetterAuthOptions } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import type { Database } from "@lumorphia-accounts/db";
 import * as schema from "@lumorphia-accounts/db/schema";
 import type { Env } from "../env.ts";
 import { devLogin } from "./dev-login.ts";
+import { resolveAccountProfile, withAccountProfile } from "./account-display-name.ts";
 import { miauth } from "./miauth.ts";
 import { mastodon } from "./mastodon.ts";
 import { installOAuthMockFetch } from "./oauth-mock-fetch.ts";
@@ -71,16 +73,31 @@ export function createAuth({ db, env, miauthFetch, mastodonFetch }: AuthDeps) {
         handle: { type: "string", required: false, input: false },
         role: { type: "string", required: false, input: false, defaultValue: "user" },
         status: { type: "string", required: false, input: false, defaultValue: "pending" },
+        handleChangedAt: { type: "date", required: false, input: false },
       },
       deleteUser: { enabled: false },
     },
     databaseHooks: {
+      account: {
+        create: {
+          before: async (account, ctx) => {
+            const fields = await resolveAccountProfile(account, ctx?.context.socialProviders ?? []);
+            return { data: withAccountProfile(account, fields) };
+          },
+        },
+        update: {
+          before: async (account, ctx) => {
+            const fields = await resolveAccountProfile(account, ctx?.context.socialProviders ?? []);
+            return { data: withAccountProfile(account, fields) };
+          },
+        },
+      },
       user: {
         create: {
           before: async (user) => ({
             data: {
               ...user,
-              handle: `pending_${randomBytes(6).toString("hex")}`,
+              handle: `${PENDING_HANDLE_PREFIX}${randomBytes(6).toString("hex")}`,
               role: "user",
               status: "pending",
             },

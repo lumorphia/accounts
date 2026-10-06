@@ -37,6 +37,15 @@ test.describe("social OAuth", () => {
       const me = await page.evaluate(async () => (await fetch("/api/me")).json());
       expect(me.user).toMatchObject({ status: "pending", role: "user" });
       expect(me.user.handle).toMatch(/^pending_/);
+      const handle = `u_${Date.now().toString(36)}`;
+      await page.getByTestId("welcome-handle").fill(handle);
+      await page.getByRole("button", { name: "設定を完了" }).click();
+      await page.waitForURL("/");
+      const active = await page.evaluate(async () => (await fetch("/api/me")).json());
+      expect(active.user).toMatchObject({ handle, status: "active" });
+      const accounts = await page.evaluate(async () => (await fetch("/api/me/accounts")).json());
+      expect(accounts.accounts).toHaveLength(1);
+      expect(accounts.accounts[0].displayName).toBeTruthy();
     });
   }
 });

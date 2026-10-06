@@ -19,11 +19,20 @@ test.describe("federated login", () => {
         .fill(HOSTS[provider]);
       await page.getByTestId(`${provider}-submit`).click();
       await page.waitForURL(
-        (url) => url.pathname === "/" && url.hostname === "accounts.lumorphia.test",
+        (url) => url.pathname === "/welcome" && url.hostname === "accounts.lumorphia.test",
       );
       const me = await page.evaluate(async () => (await fetch("/api/me")).json());
       expect(me.user).toMatchObject({ status: "pending", role: "user" });
       expect(me.user.handle).toMatch(/^pending_/);
+      const handle = `u_${Date.now().toString(36)}`;
+      await page.getByTestId("welcome-handle").fill(handle);
+      await page.getByRole("button", { name: "設定を完了" }).click();
+      await page.waitForURL("/");
+      const active = await page.evaluate(async () => (await fetch("/api/me")).json());
+      expect(active.user).toMatchObject({ handle, status: "active" });
+      const accounts = await page.evaluate(async () => (await fetch("/api/me/accounts")).json());
+      expect(accounts.accounts).toHaveLength(1);
+      expect(accounts.accounts[0].displayName).toBeTruthy();
     });
   }
 });
