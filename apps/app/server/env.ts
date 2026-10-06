@@ -22,6 +22,9 @@ const envSchema = z.object({
   AUTH_GOOGLE_SECRET: z.string().optional(),
   AUTH_X_ID: z.string().optional(),
   AUTH_X_SECRET: z.string().optional(),
+  MIAUTH_BLOCKED_HOSTS: z.string().default(""),
+  MIAUTH_DEV_HOSTS: z.string().default(""),
+  MASTODON_DEV_HOSTS: z.string().default(""),
   /** アイコンの配信元 (R2 のカスタムドメイン)。A1.1 で使う */
   PUBLIC_IMAGE_BASE_URL: z.string().url().default("https://img.example.invalid"),
   /** /api 全体の IP ごとの上限 (1 分) */

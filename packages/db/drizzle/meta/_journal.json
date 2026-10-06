@@ -15,6 +15,13 @@
       "when": 1791301281559,
       "tag": "0001_graceful_sister_grimm",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791301785163,
+      "tag": "0002_material_nick_fury",
+      "breakpoints": true
     }
   ]
 }
