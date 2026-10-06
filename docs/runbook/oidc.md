@@ -34,6 +34,14 @@ node --env-file-if-exists=.env scripts/oidc-client.ts --config /path/to/client.j
 
 `lumorphia:identities` scope を登録・要求したクライアントだけに `https://lumorphia.com/identities` (provider / id の配列) を渡す。開発用ログインの組は含めない。claim の生成には最新の利用者状態を確認し、active 以外には発行しない。
 
+## ログインと初回設定から戻る
+
+認可要求でログインが必要な場合、発行元が `/login` に署名付きの query を付けて戻す。ログイン画面はその query を保った `/api/auth/oauth2/authorize` を callback に指定する。Discord・Google・X・MiAuth・Mastodon と開発用ログインで同じ戻り方を使う。
+
+初回設定前の利用者は発行元の `postLogin` で `/welcome` に進む。設定が済んだら署名付きの query で認可を再開する。利用者の状態は DB から読み直す。通常の `next` は同一サイトの相対パスに限る。
+
+`e2e/oidc.spec.ts` は HTTPS のサービス側 callback を立て、5 種のログイン・開発用ログイン・ログイン済みの SSO を Chromium で確認する。認可コードの交換と UserInfo は同じ DB を使う Fastify の `inject` で確かめ、ID トークンは JWKS から署名・issuer・audience・nonce・handle を検証する。サービス側の Better Auth `generic-oauth` との接続は `@lumorphia/auth-client` の作業で追加する。
+
 ## サーバー間の入口
 
 `POST /api/auth/oauth2/token`、`introspect`、`revoke` は Origin を要求しない。OAuth のクライアント認証で確認する。ほかの変更系 API は引き続き同一 Origin を要求する。

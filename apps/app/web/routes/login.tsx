@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router";
+import { loginNext } from "../auth/login-next.ts";
 import type { Route } from "./+types/login";
 
 const providers = [
@@ -7,12 +8,6 @@ const providers = [
   { id: "google", label: "Google" },
   { id: "twitter", label: "X" },
 ] as const;
-
-function safeNext(value: string | null): string {
-  return value?.startsWith("/") && !value.startsWith("//") && !value.startsWith("/\\")
-    ? value
-    : "/";
-}
 
 export function meta() {
   return [{ title: "ログイン - Lumorphia" }, { name: "robots", content: "noindex" }];
@@ -29,7 +24,7 @@ export function loader() {
 
 export default function Login({ loaderData }: Route.ComponentProps) {
   const [params] = useSearchParams();
-  const next = safeNext(params.get("next"));
+  const next = loginNext(params);
   const [handle, setHandle] = useState("tester");
   const [misskeyHost, setMisskeyHost] = useState("");
   const [mastodonHost, setMastodonHost] = useState("");

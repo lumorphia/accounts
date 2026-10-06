@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
+import { loginNext } from "../auth/login-next.ts";
 import type { Route } from "./+types/welcome";
 
 export function meta() {
@@ -13,13 +14,7 @@ export default function Welcome(_: Route.ComponentProps) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const requestedNext = params.get("next");
-  const next =
-    requestedNext?.startsWith("/") &&
-    !requestedNext.startsWith("//") &&
-    !requestedNext.startsWith("/\\")
-      ? requestedNext
-      : "/";
+  const next = loginNext(params);
 
   useEffect(() => {
     void fetch("/api/me")

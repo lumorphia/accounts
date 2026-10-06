@@ -108,6 +108,35 @@ describe.skipIf(!databaseUrl)("OIDC provider (PostgreSQL)", () => {
     });
   }
 
+  it("sends a pending account to onboarding and resumes authorization afterwards", async () => {
+    await app.db.update(schema.users).set({ status: "pending" }).where(eq(schema.users.id, userId));
+    try {
+      const { res, verifier } = await authorize();
+      expect(res.statusCode, res.body).toBe(302);
+      const welcome = new URL(String(res.headers.location), origin);
+      expect(welcome.pathname).toBe("/welcome");
+      expect(welcome.searchParams.get("sig")).toBeTruthy();
+      await app.db
+        .update(schema.users)
+        .set({ status: "active" })
+        .where(eq(schema.users.id, userId));
+      const resumed = await app.inject({
+        method: "GET",
+        url: `/api/auth/oauth2/authorize${welcome.search}`,
+        headers: { ...headers, cookie, "sec-fetch-mode": "navigate", "sec-fetch-dest": "document" },
+      });
+      expect(resumed.statusCode, resumed.body).toBe(302);
+      const callback = new URL(String(resumed.headers.location));
+      expect(callback.searchParams.get("state")).toBe("test-state");
+      expect((await token(callback.searchParams.get("code")!, verifier)).statusCode).toBe(200);
+    } finally {
+      await app.db
+        .update(schema.users)
+        .set({ status: "active" })
+        .where(eq(schema.users.id, userId));
+    }
+  });
+
   it("publishes discovery and public signing keys", async () => {
     const res = await app.inject({
       method: "GET",
