@@ -1,0 +1,11 @@
+# 開発用。https で受けて、http の開発サーバー (Vite、127.0.0.1:3100) へ流す (ADR-0002)。
+# 証明書は scripts/dev-certs.sh が作る .data/tls/ のもの。本番の Caddyfile は A1.6 で作る
+{
+	auto_https off
+	admin off
+}
+
+https://accounts.lumorphia.test:8443 {
+	tls /certs/cert.pem /certs/key.pem
+	reverse_proxy 127.0.0.1:3100
+}
