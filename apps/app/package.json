@@ -1,0 +1,42 @@
+{
+  "name": "@lumorphia-accounts/app",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "react-router dev",
+    "build": "react-router build",
+    "start": "NODE_ENV=production node --env-file-if-exists=../../.env --import ./server/sentry.ts ./server/index.ts",
+    "typecheck": "react-router typegen && tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@fastify/helmet": "^13.1.1",
+    "@fastify/rate-limit": "^11.2.0",
+    "@fastify/under-pressure": "^9.2.0",
+    "@lumorphia-accounts/core": "workspace:*",
+    "@lumorphia-accounts/db": "workspace:*",
+    "@lumorphia/ops": "1.0.0",
+    "@mcansh/react-router-fastify": "^5.0.0",
+    "@react-router/node": "^8.4.0",
+    "@sentry/node": "^10.76.0",
+    "@sentry/react": "^10.76.0",
+    "fastify": "^5.12.5",
+    "fastify-plugin": "^6.0.0",
+    "fastify-type-provider-zod": "^7.0.0",
+    "isbot": "^5.2.2",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-router": "^8.4.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@react-router/dev": "^8.4.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "tailwindcss": "^4.3.3",
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3"
+  }
+}
