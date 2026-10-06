@@ -42,6 +42,17 @@ export function oidcPlugins(db: Database) {
   const provider = oauthProvider({
     loginPage: "/login",
     consentPage: "/consent",
+    postLogin: {
+      page: "/welcome",
+      consentReferenceId: ({ user }) => user.id,
+      shouldRedirect: async ({ user }) => {
+        const current = await db.query.users.findFirst({
+          columns: { status: true },
+          where: eq(schema.users.id, user.id),
+        });
+        return current?.status === "pending";
+      },
+    },
     scopes: OIDC_SCOPES,
     grantTypes: ["authorization_code"],
     allowDynamicClientRegistration: false,
