@@ -28,7 +28,7 @@ export const oauthClients = pgTable(
   "oauth_clients",
   {
     id: id(),
-    clientId: text("client_id").notNull(),
+    clientId: text("client_id").notNull().unique(),
     clientSecret: text("client_secret"),
     clientDiscoveryId: text("client_discovery_id"),
     disabled: boolean("disabled").default(false),
@@ -59,38 +59,31 @@ export const oauthClients = pgTable(
     jwksUri: text("jwks_uri"),
     grantTypes: text("grant_types").array(),
     responseTypes: text("response_types").array(),
-    requirePKCE: boolean("require_p_k_c_e"),
+    requirePKCE: boolean("require_pkce"),
     dpopBoundAccessTokens: boolean("dpop_bound_access_tokens").default(false),
     referenceId: text("reference_id"),
     metadata: jsonb("metadata"),
   },
-  (t) => [
-    uniqueIndex("oauth_clients_client_id_idx").on(t.clientId),
-    index("oauth_clients_user_id_idx").on(t.userId),
-  ],
+  (t) => [index("oauth_clients_user_id_idx").on(t.userId)],
 );
 
-export const oauthResources = pgTable(
-  "oauth_resources",
-  {
-    id: id(),
-    identifier: text("identifier").notNull(),
-    name: text("name").notNull(),
-    accessTokenTtl: integer("access_token_ttl"),
-    refreshTokenTtl: integer("refresh_token_ttl"),
-    signingAlgorithm: text("signing_algorithm"),
-    signingKeyId: text("signing_key_id"),
-    allowedScopes: text("allowed_scopes").array(),
-    customClaims: jsonb("custom_claims"),
-    dpopBoundAccessTokensRequired: boolean("dpop_bound_access_tokens_required").default(false),
-    disabled: boolean("disabled").default(false),
-    createdAt: timestamp("created_at", { withTimezone: true }),
-    updatedAt: timestamp("updated_at", { withTimezone: true }),
-    policyVersion: integer("policy_version").default(1),
-    metadata: jsonb("metadata"),
-  },
-  (t) => [uniqueIndex("oauth_resources_identifier_idx").on(t.identifier)],
-);
+export const oauthResources = pgTable("oauth_resources", {
+  id: id(),
+  identifier: text("identifier").notNull().unique(),
+  name: text("name").notNull(),
+  accessTokenTtl: integer("access_token_ttl"),
+  refreshTokenTtl: integer("refresh_token_ttl"),
+  signingAlgorithm: text("signing_algorithm"),
+  signingKeyId: text("signing_key_id"),
+  allowedScopes: text("allowed_scopes").array(),
+  customClaims: jsonb("custom_claims"),
+  dpopBoundAccessTokensRequired: boolean("dpop_bound_access_tokens_required").default(false),
+  disabled: boolean("disabled").default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }),
+  policyVersion: integer("policy_version").default(1),
+  metadata: jsonb("metadata"),
+});
 
 export const oauthClientResources = pgTable(
   "oauth_client_resources",

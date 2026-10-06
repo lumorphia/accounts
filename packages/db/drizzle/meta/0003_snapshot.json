@@ -1,5 +1,5 @@
 {
-  "id": "357813b2-1a73-4405-ad2a-14b6c0b43eef",
+  "id": "747bdf5c-3e3d-4db7-acb7-49912cb3a27f",
   "prevId": "54fada7d-16e6-4ee7-b29c-2cf58114e85e",
   "version": "7",
   "dialect": "postgresql",
@@ -1149,8 +1149,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "require_p_k_c_e": {
-          "name": "require_p_k_c_e",
+        "require_pkce": {
+          "name": "require_pkce",
           "type": "boolean",
           "primaryKey": false,
           "notNull": false
@@ -1176,21 +1176,6 @@
         }
       },
       "indexes": {
-        "oauth_clients_client_id_idx": {
-          "name": "oauth_clients_client_id_idx",
-          "columns": [
-            {
-              "expression": "client_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "oauth_clients_user_id_idx": {
           "name": "oauth_clients_user_id_idx",
           "columns": [
@@ -1223,7 +1208,15 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "oauth_clients_client_id_unique": {
+          "name": "oauth_clients_client_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "client_id"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -1691,26 +1684,18 @@
           "notNull": false
         }
       },
-      "indexes": {
-        "oauth_resources_identifier_idx": {
-          "name": "oauth_resources_identifier_idx",
-          "columns": [
-            {
-              "expression": "identifier",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "oauth_resources_identifier_unique": {
+          "name": "oauth_resources_identifier_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "identifier"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false

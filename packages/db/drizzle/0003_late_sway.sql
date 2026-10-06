@@ -72,10 +72,11 @@ CREATE TABLE "oauth_clients" (
 	"jwks_uri" text,
 	"grant_types" text[],
 	"response_types" text[],
-	"require_p_k_c_e" boolean,
+	"require_pkce" boolean,
 	"dpop_bound_access_tokens" boolean DEFAULT false,
 	"reference_id" text,
-	"metadata" jsonb
+	"metadata" jsonb,
+	CONSTRAINT "oauth_clients_client_id_unique" UNIQUE("client_id")
 );
 --> statement-breakpoint
 CREATE TABLE "oauth_consents" (
@@ -126,7 +127,8 @@ CREATE TABLE "oauth_resources" (
 	"created_at" timestamp with time zone,
 	"updated_at" timestamp with time zone,
 	"policy_version" integer DEFAULT 1,
-	"metadata" jsonb
+	"metadata" jsonb,
+	CONSTRAINT "oauth_resources_identifier_unique" UNIQUE("identifier")
 );
 --> statement-breakpoint
 ALTER TABLE "oauth_access_tokens" ADD CONSTRAINT "oauth_access_tokens_client_id_oauth_clients_client_id_fk" FOREIGN KEY ("client_id") REFERENCES "public"."oauth_clients"("client_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -150,7 +152,6 @@ CREATE INDEX "oauth_access_tokens_refresh_id_idx" ON "oauth_access_tokens" USING
 CREATE INDEX "oauth_client_resources_client_id_idx" ON "oauth_client_resources" USING btree ("client_id");--> statement-breakpoint
 CREATE INDEX "oauth_client_resources_resource_id_idx" ON "oauth_client_resources" USING btree ("resource_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "oauth_client_resources_pair_idx" ON "oauth_client_resources" USING btree ("client_id","resource_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "oauth_clients_client_id_idx" ON "oauth_clients" USING btree ("client_id");--> statement-breakpoint
 CREATE INDEX "oauth_clients_user_id_idx" ON "oauth_clients" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "oauth_consents_client_id_idx" ON "oauth_consents" USING btree ("client_id");--> statement-breakpoint
 CREATE INDEX "oauth_consents_user_id_idx" ON "oauth_consents" USING btree ("user_id");--> statement-breakpoint
@@ -158,5 +159,4 @@ CREATE UNIQUE INDEX "oauth_refresh_tokens_token_idx" ON "oauth_refresh_tokens" U
 CREATE INDEX "oauth_refresh_tokens_client_id_idx" ON "oauth_refresh_tokens" USING btree ("client_id");--> statement-breakpoint
 CREATE INDEX "oauth_refresh_tokens_session_id_idx" ON "oauth_refresh_tokens" USING btree ("session_id");--> statement-breakpoint
 CREATE INDEX "oauth_refresh_tokens_user_id_idx" ON "oauth_refresh_tokens" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "oauth_refresh_tokens_authorization_code_id_idx" ON "oauth_refresh_tokens" USING btree ("authorization_code_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "oauth_resources_identifier_idx" ON "oauth_resources" USING btree ("identifier");
+CREATE INDEX "oauth_refresh_tokens_authorization_code_id_idx" ON "oauth_refresh_tokens" USING btree ("authorization_code_id");
