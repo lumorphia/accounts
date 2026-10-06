@@ -11,6 +11,9 @@ export default function Home() {
       <p className="mt-2 text-ink-muted">
         Lumorphia のサービス (Prismtone、Scenote) で使うアカウントです。準備中です。
       </p>
+      <a href="/login" className="mt-6 inline-block rounded bg-accent px-4 py-2 text-accent-ink">
+        ログイン
+      </a>
     </main>
   );
 }

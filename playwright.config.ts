@@ -3,6 +3,7 @@ import { DEFAULT_DATABASE_URL, e2eDatabaseUrl } from "./e2e/database.ts";
 
 const PORT = Number(process.env.E2E_PORT ?? 3443);
 const HOST = "accounts.lumorphia.test";
+const OAUTH_PORT = Number(process.env.MOCK_OAUTH_PORT ?? 3401);
 const TLS = new URL(".data/tls/", import.meta.url).pathname;
 
 /**
@@ -25,6 +26,12 @@ export default defineConfig({
   projects: [{ name: "chromium", use: { browserName: "chromium" } }],
   webServer: [
     {
+      command: "node e2e/mock-oauth.ts",
+      url: `http://127.0.0.1:${OAUTH_PORT}/health`,
+      reuseExistingServer: !process.env.CI,
+      env: { MOCK_OAUTH_PORT: String(OAUTH_PORT) },
+    },
+    {
       // DB の用意 → ビルド → 本番と同じ起動 (NODE_ENV=test)
       command:
         "node e2e/prepare-db.ts && pnpm --filter @lumorphia-accounts/app build && pnpm --filter @lumorphia-accounts/app exec node server/index.ts",
@@ -41,6 +48,15 @@ export default defineConfig({
         DEV_TLS_CERT: `${TLS}cert.pem`,
         DEV_TLS_KEY: `${TLS}key.pem`,
         API_RATE_LIMIT_DISABLED: "1",
+        AUTH_SECRET: "test-e2e-secret-test-e2e-secret-1234",
+        AUTH_BASE_URL: `https://${HOST}:${PORT}`,
+        AUTH_DISCORD_ID: "test-mock-discord-id",
+        AUTH_DISCORD_SECRET: "test-mock-discord-secret",
+        AUTH_GOOGLE_ID: "test-mock-google-id",
+        AUTH_GOOGLE_SECRET: "test-mock-google-secret",
+        AUTH_X_ID: "test-mock-x-id",
+        AUTH_X_SECRET: "test-mock-x-secret",
+        OAUTH_MOCK_BASE_URL: `http://127.0.0.1:${OAUTH_PORT}`,
         LOG_LEVEL: "warn",
       },
     },
