@@ -15,6 +15,13 @@ const env = () =>
   });
 
 describe("social auth configuration", () => {
+  it("enables the OIDC provider with signed ID tokens", () => {
+    const auth = createAuth({ db, env: env() });
+    const ids = auth.options.plugins?.map((plugin) => plugin.id);
+    expect(ids).toContain("oauth-provider");
+    expect(ids).toContain("jwt");
+    expect(auth.options.disabledPaths).toContain("/token");
+  });
   it("does not merge users by matching email", () => {
     const auth = createAuth({ db, env: env() });
     expect(auth.options.account?.accountLinking?.trustedProviders).toEqual([]);

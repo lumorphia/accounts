@@ -40,6 +40,17 @@ describe("security headers", () => {
 });
 
 describe("CSRF", () => {
+  it("lets OAuth protocol requests reach client authentication without an Origin", async () => {
+    for (const path of ["token", "introspect", "revoke"]) {
+      const res = await app.inject({ method: "POST", url: `/api/auth/oauth2/${path}` });
+      expect(res.statusCode).toBe(404);
+    }
+  });
+
+  it("still requires an Origin for paths adjacent to OAuth protocol endpoints", async () => {
+    const res = await app.inject({ method: "POST", url: "/api/auth/oauth2/token/extra" });
+    expect(res.statusCode).toBe(403);
+  });
   it("rejects a mutating API request without an Origin header", async () => {
     const res = await app.inject({ method: "POST", url: "/api/anything" });
     expect(res.statusCode).toBe(403);
