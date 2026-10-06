@@ -6,7 +6,7 @@ import { loadEnv } from "../env.ts";
 
 const databaseUrl = process.env.DATABASE_URL;
 const origin = "https://accounts.lumorphia.test:3443";
-const host = `127.0.0.1:${30_000 + (crypto.getRandomValues(new Uint16Array(1))[0] % 30_000)}`;
+const host = `127.0.0.1:${30_000 + (Number.parseInt(crypto.randomUUID().slice(0, 4), 16) % 30_000)}`;
 const headers = { host: "accounts.lumorphia.test:3443", origin, "x-forwarded-proto": "https" };
 const identity = {
   id: `test-${crypto.randomUUID()}`,
