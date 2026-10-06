@@ -11,6 +11,8 @@ import { loggerOptions } from "@lumorphia/ops/logger";
 import { loadEnv, type Env } from "./env.ts";
 import { clientIp } from "./client-ip.ts";
 import { dbPlugin } from "./plugins/db.ts";
+import { storagePlugin } from "./plugins/storage.ts";
+import type { ObjectStorage } from "@lumorphia/storage";
 import { authPlugin, type AuthPluginOptions } from "./plugins/auth.ts";
 import { meRoutes } from "./routes/me.ts";
 import { securityPlugin } from "./plugins/security.ts";
@@ -20,6 +22,7 @@ import { devTlsOptions } from "./tls.ts";
 import { captureServerException, type CaptureException } from "./sentry.ts";
 
 export type BuildAppOptions = AuthPluginOptions & {
+  storage?: ObjectStorage;
   env?: Env;
   /** テストで DB をつながずに組み立てる。DB を使うと失敗する */
   skipDb?: boolean;
@@ -68,6 +71,8 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
     );
   }
   if (!opts.skipDb)
+    await app.register(storagePlugin, opts.storage ? { storage: opts.storage } : {});
+  if (!opts.skipDb)
     await app.register(authPlugin, {
       ...(opts.miauthFetch ? { miauthFetch: opts.miauthFetch } : {}),
       ...(opts.mastodonFetch ? { mastodonFetch: opts.mastodonFetch } : {}),
@@ -93,6 +98,19 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
       });
       await api.register(healthRoutes);
       if (!opts.skipDb) await api.register(meRoutes);
+      if (!opts.skipDb && env.NODE_ENV !== "production") {
+        api.get("/media/*", { schema: { hide: true } }, async (req, reply) => {
+          const key = (req.params as { "*": string })["*"];
+          if (!/^avatars\/[0-9a-f-]{36}\/[0-9a-f]{16}\/(64|256)\.webp$/.test(key))
+            return reply.code(404).send();
+          const bytes = await api.storage.get(key);
+          if (!bytes) return reply.code(404).send();
+          return reply
+            .type("image/webp")
+            .header("cache-control", "public, max-age=31536000, immutable")
+            .send(Buffer.from(bytes));
+        });
+      }
       // /api 配下の未知のパスは React Router の catch-all (/*) ではなく JSON の 404 を返す
       api.all("/*", { schema: { hide: true } }, async (req, reply) => {
         return reply.code(404).send({

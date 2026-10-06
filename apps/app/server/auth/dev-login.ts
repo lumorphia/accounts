@@ -3,9 +3,10 @@ import type { BetterAuthPlugin } from "better-auth";
 import { APIError, createAuthEndpoint } from "better-auth/api";
 import { setSessionCookie } from "better-auth/cookies";
 import type { Database } from "@lumorphia-accounts/db";
+import { validateHandle } from "@lumorphia-accounts/core";
 import { eq, schema } from "@lumorphia-accounts/db";
 
-const handleInput = z.string().regex(/^[a-z][a-z0-9_]{2,19}$/);
+const handleInput = z.string().min(3).max(20);
 
 /** 開発・テスト専用。同じ handle なら同じ利用者に入る。 */
 export function devLogin({ db }: { db: Database }) {
@@ -24,6 +25,12 @@ export function devLogin({ db }: { db: Database }) {
         },
         async (ctx) => {
           const { handle, onboarded } = ctx.body;
+          const valid = validateHandle(handle);
+          if (!valid.ok)
+            throw APIError.from("BAD_REQUEST", {
+              code: valid.reason,
+              message: `handle is ${valid.reason}`,
+            });
           const accountKey = { providerId: "dev", accountId: handle };
           const owner = await ctx.context.internalAdapter.findAccountOwnerByKey(accountKey);
           let user = owner?.kind === "owned" ? owner.user : null;

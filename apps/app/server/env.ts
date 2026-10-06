@@ -26,7 +26,7 @@ const envSchema = z.object({
   MIAUTH_DEV_HOSTS: z.string().default(""),
   MASTODON_DEV_HOSTS: z.string().default(""),
   /** アイコンの配信元 (R2 のカスタムドメイン)。A1.1 で使う */
-  PUBLIC_IMAGE_BASE_URL: z.string().url().default("https://img.example.invalid"),
+  PUBLIC_IMAGE_BASE_URL: z.string().url().default("https://accounts.lumorphia.test:8443/api/media"),
   /** /api 全体の IP ごとの上限 (1 分) */
   API_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(120),
   /**
@@ -65,8 +65,11 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
     const missing = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", ");
     throw new Error(`invalid environment: ${missing}`);
   }
-  if (parsed.data.NODE_ENV === "production" && !source.AUTH_BASE_URL) {
-    throw new Error("invalid environment: AUTH_BASE_URL is required in production");
+  if (parsed.data.NODE_ENV === "production") {
+    if (!source.AUTH_BASE_URL)
+      throw new Error("invalid environment: AUTH_BASE_URL is required in production");
+    if (!source.PUBLIC_IMAGE_BASE_URL)
+      throw new Error("invalid environment: PUBLIC_IMAGE_BASE_URL is required in production");
   }
   return parsed.data;
 }

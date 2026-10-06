@@ -64,6 +64,7 @@ export default defineConfig({
         API_RATE_LIMIT_DISABLED: "1",
         AUTH_SECRET: "test-e2e-secret-test-e2e-secret-1234",
         AUTH_BASE_URL: `https://${HOST}:${PORT}`,
+        PUBLIC_IMAGE_BASE_URL: `https://${HOST}:${PORT}/api/media`,
         AUTH_DISCORD_ID: "test-mock-discord-id",
         AUTH_DISCORD_SECRET: "test-mock-discord-secret",
         AUTH_GOOGLE_ID: "test-mock-google-id",

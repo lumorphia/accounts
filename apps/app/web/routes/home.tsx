@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import type { Route } from "./+types/home";
 
 export function meta(_: Route.MetaArgs) {
@@ -5,6 +6,13 @@ export function meta(_: Route.MetaArgs) {
 }
 
 export default function Home() {
+  useEffect(() => {
+    void fetch("/api/me")
+      .then((res) => res.json())
+      .then((data: { user: { status: string } | null }) => {
+        if (data.user?.status === "pending") window.location.assign("/welcome");
+      });
+  }, []);
   return (
     <main className="mx-auto max-w-2xl p-8">
       <h1 className="text-2xl font-semibold">Lumorphia アカウント</h1>
