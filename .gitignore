@@ -1,0 +1,17 @@
+*:Zone.Identifier
+.env
+.env.*
+!.env.example
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+test-results/
+playwright-report/
+.react-router/
+# 開発の TLS (Caddy の内部 CA が作る。docs と AGENTS.md)
+.data/
+# spike は手元の証明書と依存を置く
+spikes/*/certs/
+spikes/*/node_modules/
