@@ -48,4 +48,10 @@ node --env-file-if-exists=.env scripts/oidc-client.ts --config /path/to/client.j
 
 ## 署名の鍵
 
-EdDSA (Ed25519)。秘密鍵は DB に暗号化して保存する。90 日で自動更新し、失効した公開鍵は 7 日間 JWKS に残す。A1.2 の続きで更新・end-session・back-channel の結合確認を追加する。
+EdDSA (Ed25519)。秘密鍵は `AUTH_SECRET` で保護され、DB に暗号化して保存する。署名鍵の有効期間は作成から 90 日。期限に達した後、最初のトークン署名で新しい鍵を作る。JWKS の読み取りだけでは鍵は更新されない。
+
+古い公開鍵は署名の有効期限から 7 日間 JWKS に残り、新旧の鍵で署名された有効な ID トークンを検証できる。7 日の猶予期間に達すると JWKS から外れるが、DB の鍵の行は物理削除されない。アプリを再起動しても同じ DB と `AUTH_SECRET` なら保存済みの鍵を使う。
+
+`apps/app/server/auth/oidc-key-rotation.db.test.ts` では Date だけを進め、PostgreSQL と実際の認可コード交換で、90 日の更新境界・7 日の公開境界・秘密鍵を公開しないこと・再起動後の継続利用を確かめる。更新間隔と保持期間を一時的に短くした場合にテストが失敗することも確認済み。
+
+end-session と back-channel logout の配送は A1.2 の次の作業で確認する。
