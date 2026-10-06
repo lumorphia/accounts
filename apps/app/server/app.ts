@@ -11,6 +11,8 @@ import { loggerOptions } from "@lumorphia/ops/logger";
 import { loadEnv, type Env } from "./env.ts";
 import { clientIp } from "./client-ip.ts";
 import { dbPlugin } from "./plugins/db.ts";
+import { authPlugin } from "./plugins/auth.ts";
+import { meRoutes } from "./routes/me.ts";
 import { securityPlugin } from "./plugins/security.ts";
 import { errorsPlugin } from "./plugins/errors.ts";
 import { healthRoutes } from "./routes/health.ts";
@@ -65,6 +67,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
       ) as FastifyInstance["db"],
     );
   }
+  if (!opts.skipDb) await app.register(authPlugin);
   await app.register(underPressure, {
     maxEventLoopDelay: 1000,
     maxHeapUsedBytes: 1_500_000_000,
@@ -85,6 +88,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
         allowList: () => rateLimitDisabled,
       });
       await api.register(healthRoutes);
+      if (!opts.skipDb) await api.register(meRoutes);
       // /api 配下の未知のパスは React Router の catch-all (/*) ではなく JSON の 404 を返す
       api.all("/*", { schema: { hide: true } }, async (req, reply) => {
         return reply.code(404).send({

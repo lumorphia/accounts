@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// 環境変数。A1.0 は土台に要るものだけ。ログイン (AUTH_*) などは段階ごとに足す (docs/plan.md 4.1)
+// 環境変数。認証の値は開発・E2E でも https のホスト名を使う。
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(3100),
@@ -10,6 +10,18 @@ const envSchema = z.object({
   SENTRY_DSN: z.string().url().optional(),
   SENTRY_ENVIRONMENT: z.string().default("production"),
   DATABASE_URL: z.string().min(1),
+  AUTH_SECRET: z.string().min(32),
+  AUTH_BASE_URL: z
+    .string()
+    .url()
+    .startsWith("https://")
+    .default("https://accounts.lumorphia.test:8443"),
+  AUTH_DISCORD_ID: z.string().optional(),
+  AUTH_DISCORD_SECRET: z.string().optional(),
+  AUTH_GOOGLE_ID: z.string().optional(),
+  AUTH_GOOGLE_SECRET: z.string().optional(),
+  AUTH_X_ID: z.string().optional(),
+  AUTH_X_SECRET: z.string().optional(),
   /** アイコンの配信元 (R2 のカスタムドメイン)。A1.1 で使う */
   PUBLIC_IMAGE_BASE_URL: z.string().url().default("https://img.example.invalid"),
   /** /api 全体の IP ごとの上限 (1 分) */
@@ -40,10 +52,18 @@ const envSchema = z.object({
 export type Env = z.infer<typeof envSchema>;
 
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
-  const parsed = envSchema.safeParse(source);
+  const parsed = envSchema.safeParse({
+    ...source,
+    AUTH_SECRET:
+      source.AUTH_SECRET ??
+      (source.NODE_ENV === "production" ? undefined : "development-only-lumorphia-auth-secret"),
+  });
   if (!parsed.success) {
     const missing = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", ");
     throw new Error(`invalid environment: ${missing}`);
+  }
+  if (parsed.data.NODE_ENV === "production" && !source.AUTH_BASE_URL) {
+    throw new Error("invalid environment: AUTH_BASE_URL is required in production");
   }
   return parsed.data;
 }
