@@ -1,0 +1,31 @@
+# 開発用。本番は compose.prod.yaml (A1.6 で作る)。lumorphia/prismtone の開発用 (5433) とぶつからないよう 5434 を使う
+services:
+  postgres:
+    image: postgres:18.6
+    environment:
+      POSTGRES_USER: accounts
+      POSTGRES_PASSWORD: accounts
+      POSTGRES_DB: accounts
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5434}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U accounts -d accounts"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # 開発の https (docker/Caddyfile.dev)。https://accounts.lumorphia.test:8443 を、手元の開発サーバー (3100) へ流す。
+  # 手元の 127.0.0.1:3100 に届くよう host のネットワークで動かす
+  caddy:
+    image: caddy:2.11.6
+    network_mode: host
+    volumes:
+      - ./docker/Caddyfile.dev:/etc/caddy/Caddyfile:ro
+      - ./.data/tls:/certs:ro
+    restart: unless-stopped
+
+volumes:
+  pgdata:

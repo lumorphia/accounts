@@ -1,0 +1,7 @@
+# push 前に typecheck と単体・DB テスト。DB テストは DATABASE_URL が無いと skip されるので、
+# .env があればそこから読む (docker compose up -d postgres しておくこと。lumorphia/prismtone と同じ)
+if [ -z "$DATABASE_URL" ] && [ -f .env ]; then
+  DATABASE_URL=$(grep '^DATABASE_URL' .env | cut -d= -f2- | tr -d '"')
+  export DATABASE_URL
+fi
+pnpm typecheck && pnpm test

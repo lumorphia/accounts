@@ -1,0 +1,9 @@
+# gitleaks の設定。既定のルールに、テスト用の擬似シークレットの除外を足す
+[extend]
+useDefault = true
+
+[allowlist]
+description = "テスト・fixture の擬似シークレット"
+regexes = [
+  '''(test|ci|e2e|dev)-secret''',
+]

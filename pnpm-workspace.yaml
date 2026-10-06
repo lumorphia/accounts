@@ -1,0 +1,15 @@
+packages:
+  - apps/*
+  - packages/*
+
+# 公開から 1 日経っていない版を入れない (pnpm 12 の既定の minimumReleaseAge。lumorphia/prismtone の ADR-0033 と同じ)。
+# ここで緩めない。手元で確かめるだけなら pnpm_config_minimum_release_age=0 を付ける
+
+# 例外: 自分たちの lumorphia/platform が CI で公開するもので、公開してすぐに使う (lumorphia/prismtone の ADR-0036)
+minimumReleaseAgeExclude:
+  - "@lumorphia/*"
+
+# 依存のビルドスクリプト (install / postinstall) を走らせるかを 1 つずつ決める。載っていないものは install が失敗する
+allowBuilds:
+  # ネイティブのバイナリを置く。vite / react-router のビルドで使う
+  esbuild: true
