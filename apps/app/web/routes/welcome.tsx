@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router";
 import type { Route } from "./+types/welcome";
 
 export function meta() {
@@ -6,22 +7,30 @@ export function meta() {
 }
 
 export default function Welcome(_: Route.ComponentProps) {
+  const [params] = useSearchParams();
   const [name, setName] = useState("");
   const [handle, setHandle] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const requestedNext = params.get("next");
+  const next =
+    requestedNext?.startsWith("/") &&
+    !requestedNext.startsWith("//") &&
+    !requestedNext.startsWith("/\\")
+      ? requestedNext
+      : "/";
 
   useEffect(() => {
     void fetch("/api/me")
       .then((res) => res.json())
       .then((data: { user: { name: string; status: string } | null }) => {
         if (!data.user) {
-          window.location.assign("/login");
+          window.location.assign(`/login?next=${encodeURIComponent(next)}`);
           return;
         }
         if (data.user.status !== "pending") {
-          window.location.assign("/");
+          window.location.assign(next);
           return;
         }
         setName(data.user.name);
@@ -39,7 +48,7 @@ export default function Welcome(_: Route.ComponentProps) {
         setError("アカウントを読み込めませんでした");
         setLoading(false);
       });
-  }, []);
+  }, [next]);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -56,7 +65,7 @@ export default function Welcome(_: Route.ComponentProps) {
         const body = (await res.json()) as { error?: { message?: string } };
         throw new Error(body.error?.message ?? "アカウントを設定できませんでした");
       }
-      window.location.assign("/");
+      window.location.assign(next);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "アカウントを設定できませんでした");
       setBusy(false);
