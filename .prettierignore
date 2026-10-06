@@ -1,0 +1,12 @@
+node_modules
+dist
+build
+coverage
+pnpm-lock.yaml
+.react-router
+CHANGELOG.md
+# drizzle-kit が生成する
+packages/db/drizzle
+build/
+.react-router/
+spikes/*/node_modules/

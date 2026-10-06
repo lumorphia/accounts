@@ -1,0 +1,50 @@
+{
+  "name": "lumorphia-accounts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "AGPL-3.0-only",
+  "engines": {
+    "node": ">=24.21.0",
+    "pnpm": ">=12.8.1"
+  },
+  "packageManager": "pnpm@12.8.1",
+  "scripts": {
+    "dev": "pnpm -r --parallel --stream run dev",
+    "build": "pnpm -r run build",
+    "typecheck": "tsc -p tsconfig.json && pnpm -r run typecheck",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "db:generate": "pnpm --filter @lumorphia-accounts/db run generate",
+    "db:migrate": "pnpm --filter @lumorphia-accounts/db run migrate",
+    "prepare": "husky",
+    "audit:high": "pnpm audit --audit-level=high --prod",
+    "e2e": "playwright test",
+    "dev:certs": "scripts/dev-certs.sh"
+  },
+  "devDependencies": {
+    "@lumorphia-accounts/db": "workspace:*",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^24.19.1",
+    "@vitest/coverage-v8": "^5.0.3",
+    "eslint": "^10.12.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
+    "prettier": "^3.9.9",
+    "typescript": "6.0.3",
+    "typescript-eslint": "^8.71.0",
+    "vitest": "^5.0.3"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,mjs,cjs,js}": [
+      "eslint --max-warnings=0 --no-warn-ignored",
+      "prettier --check"
+    ],
+    "*.{json,md,yml,yaml,css}": [
+      "prettier --check"
+    ]
+  }
+}
