@@ -54,4 +54,19 @@ EdDSA (Ed25519)。秘密鍵は `AUTH_SECRET` で保護され、DB に暗号化�
 
 `apps/app/server/auth/oidc-key-rotation.db.test.ts` では Date だけを進め、PostgreSQL と実際の認可コード交換で、90 日の更新境界・7 日の公開境界・秘密鍵を公開しないこと・再起動後の継続利用を確かめる。更新間隔と保持期間を一時的に短くした場合にテストが失敗することも確認済み。
 
-end-session と back-channel logout の配送は A1.2 の次の作業で確認する。
+## ログアウト
+
+サービスは discovery の `end_session_endpoint` にブラウザを向け、`id_token_hint`・登録済みの `post_logout_redirect_uri`・`state` を渡す。hint と現在のセッションが一致すればそのセッションを終了してサービスに戻す。hint が無い場合や別セッションの hint は確認フォームを経由する。確認フォームの POST は同一 Origin を要求する。
+
+確認フォームから登録済みのサービスへ戻るリダイレクトは Chromium の form-action 制限も受ける。確認ページだけ、要求の戻り先 URI が有効なクライアントに登録されていれば、そのオリジンを CSP に足す (ADR-0004)。provider の他の CSP と、通常ページの form-action は保持する。
+
+セッションを終了すると、そこで使ったサービスの `backchannel_logout_uri` に署名付きの Logout Token を POST する。アカウント側の通常の sign-out でも配送する。session に結び付いた access token は無効になり、introspect と UserInfo でも使えなくなる。
+
+- Logout Token は `typ: logout+jwt`、EdDSA の署名。`iss`・サービスの `aud`・`sub`・`sid`・`iat`・`exp`・`jti` と `http://schemas.openid.net/event/backchannel-logout` の event を持つ。`nonce` は持たず、有効期間は120秒。
+- 各サービスへの配送は1回。受信先のエラーで他のサービスへの配送やログアウトを止めない。再送する仕組みは持たないので、退会の知らせとは共用しない。
+- 受信先の URL は登録時に HTTPS と公開ホスト名を要求する。テストのためにこの検査を弱めない。
+- end-session は署名検証のため、発行元自身の JWKS を HTTP で取得する。実行環境から `AUTH_BASE_URL` の JWKS に到達できる必要がある。
+
+`oidc-logout.db.test.ts` では登録済みの配送先だけをローカル HTTP 受信サーバーへ向け、DB・JWT の署名検証・通知の内容・失敗時の継続を確認する。`e2e/oidc-network.ts` は E2E の発行元プロセスだけに preload し、既知の JWKS と通知先の通信を手元の TLS サーバーへ向ける。手元 CA とホスト名による証明書の検証は有効なまま。ブラウザ E2E は hint 付きの logout と、hint 無しの確認フォームの両方で、CSP 違反なくサービスへ戻り Cookie のセッションが終了することを確認する。
+
+サービス側のセッションを消す受け口と Logout Token の検証は、次の `@lumorphia/auth-client` で実装する。

@@ -48,12 +48,13 @@ export default defineConfig({
     {
       // DB の用意 → ビルド → 本番と同じ起動 (NODE_ENV=test)
       command:
-        "node e2e/prepare-db.ts && pnpm --filter @lumorphia-accounts/app build && pnpm --filter @lumorphia-accounts/app exec node server/index.ts",
+        "node e2e/prepare-db.ts && pnpm --filter @lumorphia-accounts/app build && pnpm --filter @lumorphia-accounts/app exec node --import ../../e2e/oidc-network.ts server/index.ts",
       url: `https://127.0.0.1:${PORT}/api/health`,
       ignoreHTTPSErrors: true,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
       env: {
+        MOCK_OIDC_PORT: process.env.MOCK_OIDC_PORT ?? "3403",
         NODE_ENV: "test",
         PORT: String(PORT),
         HOST: "127.0.0.1",

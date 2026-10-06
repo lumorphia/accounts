@@ -1,7 +1,8 @@
 import { createHash, randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { createServer } from "node:https";
-import { createLocalJWKSet, jwtVerify } from "jose";
+import type { Page } from "@playwright/test";
+import { createLocalJWKSet, decodeJwt, jwtVerify } from "jose";
 import { eq, schema } from "@lumorphia-accounts/db";
 import { buildApp } from "../apps/app/server/app.ts";
 import { loadEnv } from "../apps/app/server/env.ts";
@@ -25,13 +26,27 @@ test.describe("OIDC browser authorization", () => {
   test.describe.configure({ mode: "serial" });
   let app: Awaited<ReturnType<typeof buildApp>>;
   let client: { client_id: string; client_secret: string };
+  let receivedLogoutTokens: string[] = [];
   // HTTP の redirect chain も実際のブラウザでたどるため、TLS のサービス側 callback を立てる。
   const callbackServer = createServer(
     {
       cert: readFileSync(new URL("../.data/tls/cert.pem", import.meta.url)),
       key: readFileSync(new URL("../.data/tls/key.pem", import.meta.url)),
     },
-    (_req, res) => {
+    (req, res) => {
+      if (req.method === "POST" && req.url === "/api/lumorphia/backchannel-logout") {
+        let body = "";
+        req.on("data", (chunk) => {
+          body += chunk;
+        });
+        req.on("end", () => {
+          const token = new URLSearchParams(body).get("logout_token");
+          if (token) receivedLogoutTokens = [...receivedLogoutTokens, token];
+          res.writeHead(204);
+          res.end();
+        });
+        return;
+      }
       res.writeHead(200, { "content-type": "text/html" });
       res.end("<p>Service callback</p>");
     },
@@ -70,6 +85,8 @@ test.describe("OIDC browser authorization", () => {
     client = (await registerServiceClient(app.auth, new Headers({ cookie }), {
       service: "prismtone",
       redirectUri,
+      postLogoutRedirectUri: `https://prismtone.lumorphia.test:${callbackPort}/signed-out`,
+      backchannelLogoutUri: "https://prismtone.lumorphia.com/api/lumorphia/backchannel-logout",
     })) as typeof client;
   });
   test.afterAll(async () => {
@@ -78,6 +95,47 @@ test.describe("OIDC browser authorization", () => {
       callbackServer.close((error) => (error ? reject(error) : resolve())),
     );
   });
+
+  async function authorizeSession(page: Page) {
+    receivedLogoutTokens = [];
+    await gotoHydrated(page, "/login");
+    await page.getByLabel("開発用ログイン").fill(`lo_${randomBytes(6).toString("hex")}`);
+    await page.getByTestId("dev-login").getByRole("button", { name: "ログイン" }).click();
+    await page.waitForURL("/");
+    const verifier = randomBytes(32).toString("base64url");
+    const query = new URLSearchParams({
+      client_id: client.client_id,
+      redirect_uri: redirectUri,
+      response_type: "code",
+      scope: "openid profile",
+      state: "test-logout-auth",
+      nonce: "test-logout-nonce",
+      code_challenge: createHash("sha256").update(verifier).digest("base64url"),
+      code_challenge_method: "S256",
+    });
+    await page.goto(`/api/auth/oauth2/authorize?${query}`);
+    await page.waitForURL((url) => url.origin === new URL(redirectUri).origin);
+    const code = new URL(page.url()).searchParams.get("code")!;
+    const exchanged = await app.inject({
+      method: "POST",
+      url: "/api/auth/oauth2/token",
+      headers: {
+        host: headers.host,
+        "x-forwarded-proto": "https",
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      payload: new URLSearchParams({
+        grant_type: "authorization_code",
+        client_id: client.client_id,
+        client_secret: client.client_secret,
+        redirect_uri: redirectUri,
+        code,
+        code_verifier: verifier,
+      }).toString(),
+    });
+    expect(exchanged.statusCode).toBe(200);
+    return { query, idToken: exchanged.json().id_token as string };
+  }
 
   for (const provider of [
     "discord",
@@ -204,4 +262,55 @@ test.describe("OIDC browser authorization", () => {
       expect(info.json()["https://lumorphia.com/handle"]).toBe(handle);
     });
   }
+  test("RP initiated logout clears the browser session and delivers a signed token over TLS", async ({
+    page,
+  }) => {
+    const { query, idToken } = await authorizeSession(page);
+    const logout = new URLSearchParams({
+      id_token_hint: idToken,
+      post_logout_redirect_uri: `https://prismtone.lumorphia.test:${callbackPort}/signed-out`,
+      state: "test-browser-logout",
+    });
+    await page.goto(`/api/auth/oauth2/end-session?${logout}`);
+    await page.waitForURL((url) => url.pathname === "/signed-out");
+    expect(new URL(page.url()).searchParams.get("state")).toBe("test-browser-logout");
+    expect(receivedLogoutTokens.length).toBe(1);
+    const keys = (await app.inject({ method: "GET", url: "/api/auth/jwks", headers })).json();
+    const { payload } = await jwtVerify(receivedLogoutTokens[0]!, createLocalJWKSet(keys), {
+      issuer: `${origin}/api/auth`,
+      audience: client.client_id,
+      algorithms: ["EdDSA"],
+      typ: "logout+jwt",
+    });
+    const hinted = decodeJwt(idToken);
+    expect(payload.sub).toBe(hinted.sub);
+    expect(payload.sid).toBe(hinted.sid);
+    expect(payload.events).toEqual({ "http://schemas.openid.net/event/backchannel-logout": {} });
+    expect(payload.nonce).toBeUndefined();
+    await gotoHydrated(page, "/");
+    const me = await page.evaluate(async () => (await fetch("/api/me")).json());
+    expect(me.user).toBeNull();
+    await page.goto(`/api/auth/oauth2/authorize?${query}`);
+    await page.waitForURL((url) => url.pathname === "/login");
+  });
+
+  test("a browser confirms logout without an ID token hint and returns to the service", async ({
+    page,
+  }) => {
+    await authorizeSession(page);
+    const query = new URLSearchParams({
+      client_id: client.client_id,
+      post_logout_redirect_uri: `https://prismtone.lumorphia.test:${callbackPort}/signed-out`,
+      state: "test-browser-confirm",
+    });
+    await page.goto(`/api/auth/oauth2/end-session?${query}`);
+    await expect(page.locator("form[data-oidc-logout-confirmation]")).toBeVisible();
+    await page.getByRole("button", { name: "Confirm logout" }).click();
+    await page.waitForURL((url) => url.pathname === "/signed-out");
+    expect(new URL(page.url()).searchParams.get("state")).toBe("test-browser-confirm");
+    expect(receivedLogoutTokens.length).toBe(1);
+    await gotoHydrated(page, "/");
+    const me = await page.evaluate(async () => (await fetch("/api/me")).json());
+    expect(me.user).toBeNull();
+  });
 });
