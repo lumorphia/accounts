@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import fp from "fastify-plugin";
 import helmet from "@fastify/helmet";
+import { eq, schema } from "@lumorphia-accounts/db";
 import { buildCspDirectives, CSP_NONCE_HEADER, CSP_REPORT_PATH, serializeCsp } from "../csp.ts";
 
 const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -49,6 +50,50 @@ export const securityPlugin = fp(
         reportOnly ? "content-security-policy-report-only" : "content-security-policy",
         csp,
       );
+    });
+
+    app.addHook("onSend", async (req, reply, payload) => {
+      const url = new URL(req.url, app.env.AUTH_BASE_URL);
+      if (
+        url.pathname !== "/api/auth/oauth2/end-session" ||
+        !app.hasDecorator("auth") ||
+        !String(reply.getHeader("content-type")).startsWith("text/html")
+      )
+        return payload;
+      const requested = url.searchParams.get("post_logout_redirect_uri");
+      if (!requested) return payload;
+      const clientId = url.searchParams.get("client_id");
+      const clients = await app.db.query.oauthClients.findMany({
+        ...(clientId ? { where: eq(schema.oauthClients.clientId, clientId) } : {}),
+        columns: { disabled: true, enableEndSession: true, postLogoutRedirectUris: true },
+      });
+      if (
+        !clients.some(
+          (client) =>
+            !client.disabled &&
+            client.enableEndSession &&
+            client.postLogoutRedirectUris?.includes(requested),
+        )
+      )
+        return payload;
+      const origin = new URL(requested).origin;
+      // provider 自身も CSP を返すので、最終のヘッダの form-action だけに追記する。
+      // Chromium はフォーム POST のリダイレクト先にもこの制限を適用する (ADR-0004)。
+      for (const header of ["content-security-policy", "content-security-policy-report-only"]) {
+        const policy = reply.getHeader(header);
+        if (typeof policy !== "string") continue;
+        reply.header(
+          header,
+          policy
+            .split(";")
+            .map((directive) => {
+              const value = directive.trim();
+              return value.startsWith("form-action ") ? `${value} ${origin}` : value;
+            })
+            .join("; "),
+        );
+      }
+      return payload;
     });
 
     // ブラウザからの CSP 違反レポート。ログに残すだけ。Origin は付かないので CSRF の対象外
