@@ -55,7 +55,7 @@ describe.skipIf(!databaseUrl)("me routes (PostgreSQL)", () => {
       method: "POST",
       url: "/api/auth/dev/login",
       headers,
-      payload: { handle: `pending_${stamp}`, onboarded: false },
+      payload: { handle: `wait_${stamp}`, onboarded: false },
     });
     pendingCookie = cookiesOf(pending);
   });
