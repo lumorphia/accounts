@@ -11,7 +11,7 @@ import { loggerOptions } from "@lumorphia/ops/logger";
 import { loadEnv, type Env } from "./env.ts";
 import { clientIp } from "./client-ip.ts";
 import { dbPlugin } from "./plugins/db.ts";
-import { authPlugin } from "./plugins/auth.ts";
+import { authPlugin, type AuthPluginOptions } from "./plugins/auth.ts";
 import { meRoutes } from "./routes/me.ts";
 import { securityPlugin } from "./plugins/security.ts";
 import { errorsPlugin } from "./plugins/errors.ts";
@@ -19,7 +19,7 @@ import { healthRoutes } from "./routes/health.ts";
 import { devTlsOptions } from "./tls.ts";
 import { captureServerException, type CaptureException } from "./sentry.ts";
 
-export type BuildAppOptions = {
+export type BuildAppOptions = AuthPluginOptions & {
   env?: Env;
   /** テストで DB をつながずに組み立てる。DB を使うと失敗する */
   skipDb?: boolean;
@@ -67,7 +67,11 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
       ) as FastifyInstance["db"],
     );
   }
-  if (!opts.skipDb) await app.register(authPlugin);
+  if (!opts.skipDb)
+    await app.register(authPlugin, {
+      ...(opts.miauthFetch ? { miauthFetch: opts.miauthFetch } : {}),
+      ...(opts.mastodonFetch ? { mastodonFetch: opts.mastodonFetch } : {}),
+    });
   await app.register(underPressure, {
     maxEventLoopDelay: 1000,
     maxHeapUsedBytes: 1_500_000_000,

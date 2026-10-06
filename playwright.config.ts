@@ -4,6 +4,8 @@ import { DEFAULT_DATABASE_URL, e2eDatabaseUrl } from "./e2e/database.ts";
 const PORT = Number(process.env.E2E_PORT ?? 3443);
 const HOST = "accounts.lumorphia.test";
 const OAUTH_PORT = Number(process.env.MOCK_OAUTH_PORT ?? 3401);
+const MISSKEY_PORT = Number(process.env.MOCK_MISSKEY_PORT ?? 3399);
+const MASTODON_PORT = Number(process.env.MOCK_MASTODON_PORT ?? 3402);
 const TLS = new URL(".data/tls/", import.meta.url).pathname;
 
 /**
@@ -25,6 +27,18 @@ export default defineConfig({
   },
   projects: [{ name: "chromium", use: { browserName: "chromium" } }],
   webServer: [
+    {
+      command: "node e2e/mock-misskey.ts",
+      url: `http://127.0.0.1:${MISSKEY_PORT}/api/meta`,
+      reuseExistingServer: !process.env.CI,
+      env: { MOCK_MISSKEY_PORT: String(MISSKEY_PORT) },
+    },
+    {
+      command: "node e2e/mock-mastodon.ts",
+      url: `http://127.0.0.1:${MASTODON_PORT}/health`,
+      reuseExistingServer: !process.env.CI,
+      env: { MOCK_MASTODON_PORT: String(MASTODON_PORT) },
+    },
     {
       command: "node e2e/mock-oauth.ts",
       url: `http://127.0.0.1:${OAUTH_PORT}/health`,
@@ -57,6 +71,8 @@ export default defineConfig({
         AUTH_X_ID: "test-mock-x-id",
         AUTH_X_SECRET: "test-mock-x-secret",
         OAUTH_MOCK_BASE_URL: `http://127.0.0.1:${OAUTH_PORT}`,
+        MIAUTH_DEV_HOSTS: `127.0.0.1:${MISSKEY_PORT}`,
+        MASTODON_DEV_HOSTS: `127.0.0.1:${MASTODON_PORT}`,
         LOG_LEVEL: "warn",
       },
     },

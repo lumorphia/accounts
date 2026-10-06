@@ -17,10 +17,17 @@ declare module "fastify" {
   }
 }
 
+export type AuthPluginOptions = { miauthFetch?: typeof fetch; mastodonFetch?: typeof fetch };
+
 /** Better Auth の Web Request を Fastify に渡し、API 用の認証フックを提供する。 */
-export const authPlugin = fp(
-  async (app) => {
-    const auth = createAuth({ db: app.db, env: app.env });
+export const authPlugin = fp<AuthPluginOptions>(
+  async (app, opts) => {
+    const auth = createAuth({
+      db: app.db,
+      env: app.env,
+      ...(opts.miauthFetch ? { miauthFetch: opts.miauthFetch } : {}),
+      ...(opts.mastodonFetch ? { mastodonFetch: opts.mastodonFetch } : {}),
+    });
     app.decorate("auth", auth);
     app.decorateRequest("user", null);
     app.decorateRequest("session", null);

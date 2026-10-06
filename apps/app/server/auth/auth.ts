@@ -5,12 +5,19 @@ import type { Database } from "@lumorphia-accounts/db";
 import * as schema from "@lumorphia-accounts/db/schema";
 import type { Env } from "../env.ts";
 import { devLogin } from "./dev-login.ts";
+import { miauth } from "./miauth.ts";
+import { mastodon } from "./mastodon.ts";
 import { installOAuthMockFetch } from "./oauth-mock-fetch.ts";
 
-export type AuthDeps = { db: Database; env: Env };
+export type AuthDeps = {
+  db: Database;
+  env: Env;
+  miauthFetch?: typeof fetch;
+  mastodonFetch?: typeof fetch;
+};
 const DAY = 24 * 60 * 60;
 
-export function createAuth({ db, env }: AuthDeps) {
+export function createAuth({ db, env, miauthFetch, mastodonFetch }: AuthDeps) {
   if (env.OAUTH_MOCK_BASE_URL && env.NODE_ENV !== "production")
     installOAuthMockFetch(env.OAUTH_MOCK_BASE_URL);
   const socialProviders: NonNullable<BetterAuthOptions["socialProviders"]> = {};
@@ -81,7 +88,30 @@ export function createAuth({ db, env }: AuthDeps) {
         },
       },
     },
-    plugins: env.NODE_ENV === "production" ? [] : [devLogin({ db })],
+    plugins: [
+      ...(env.NODE_ENV === "production" ? [] : [devLogin({ db })]),
+      miauth({
+        appName: "Lumorphia",
+        baseURL: env.AUTH_BASE_URL,
+        policy: {
+          blockedHosts: env.MIAUTH_BLOCKED_HOSTS.split(",").filter(Boolean),
+          devHosts: env.MIAUTH_DEV_HOSTS.split(",").filter(Boolean),
+        },
+        isProduction: env.NODE_ENV === "production",
+        ...(miauthFetch ? { fetch: miauthFetch } : {}),
+      }),
+      mastodon({
+        appName: "Lumorphia",
+        baseURL: env.AUTH_BASE_URL,
+        db,
+        policy: {
+          blockedHosts: env.MIAUTH_BLOCKED_HOSTS.split(",").filter(Boolean),
+          devHosts: env.MASTODON_DEV_HOSTS.split(",").filter(Boolean),
+        },
+        isProduction: env.NODE_ENV === "production",
+        ...(mastodonFetch ? { fetch: mastodonFetch } : {}),
+      }),
+    ],
   });
 }
 

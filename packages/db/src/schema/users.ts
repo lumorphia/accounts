@@ -77,3 +77,11 @@ export const verifications = pgTable(
   },
   (t) => [index("verifications_identifier_idx").on(t.identifier)],
 );
+
+/** Mastodon はサーバーごとに OAuth クライアントを登録する。secret はログに出さない。 */
+export const mastodonApps = pgTable("mastodon_apps", {
+  host: text("host").primaryKey(),
+  clientId: text("client_id").notNull(),
+  clientSecret: text("client_secret").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});

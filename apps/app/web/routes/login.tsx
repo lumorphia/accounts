@@ -31,6 +31,8 @@ export default function Login({ loaderData }: Route.ComponentProps) {
   const [params] = useSearchParams();
   const next = safeNext(params.get("next"));
   const [handle, setHandle] = useState("tester");
+  const [misskeyHost, setMisskeyHost] = useState("");
+  const [mastodonHost, setMastodonHost] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -43,6 +45,25 @@ export default function Login({ loaderData }: Route.ComponentProps) {
         credentials: "same-origin",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ provider, callbackURL: next }),
+      });
+      const data = (await res.json()) as { url?: string };
+      if (!res.ok || !data.url) throw new Error("ログインを開始できませんでした");
+      window.location.assign(data.url);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "ログインに失敗しました");
+      setBusy(false);
+    }
+  }
+
+  async function federated(provider: "miauth" | "mastodon", host: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/auth/${provider}/start`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ host, callbackURL: next }),
       });
       const data = (await res.json()) as { url?: string };
       if (!res.ok || !data.url) throw new Error("ログインを開始できませんでした");
@@ -89,6 +110,64 @@ export default function Login({ loaderData }: Route.ComponentProps) {
           </button>
         ))}
       </div>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          void federated("miauth", misskeyHost);
+        }}
+        className="space-y-2"
+      >
+        <label htmlFor="misskey-host" className="block text-sm">
+          Misskey のサーバー
+        </label>
+        <div className="flex gap-2">
+          <input
+            id="misskey-host"
+            value={misskeyHost}
+            onChange={(event) => setMisskeyHost(event.target.value)}
+            placeholder="misskey.io"
+            required
+            className="min-w-0 flex-1 rounded border border-line bg-surface-raised p-2"
+          />
+          <button
+            type="submit"
+            disabled={busy}
+            className="rounded border border-line px-3 disabled:opacity-50"
+            data-testid="misskey-submit"
+          >
+            Misskey でログイン
+          </button>
+        </div>
+      </form>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          void federated("mastodon", mastodonHost);
+        }}
+        className="space-y-2"
+      >
+        <label htmlFor="mastodon-host" className="block text-sm">
+          Mastodon のサーバー
+        </label>
+        <div className="flex gap-2">
+          <input
+            id="mastodon-host"
+            value={mastodonHost}
+            onChange={(event) => setMastodonHost(event.target.value)}
+            placeholder="mstdn.jp"
+            required
+            className="min-w-0 flex-1 rounded border border-line bg-surface-raised p-2"
+          />
+          <button
+            type="submit"
+            disabled={busy}
+            className="rounded border border-line px-3 disabled:opacity-50"
+            data-testid="mastodon-submit"
+          >
+            Mastodon でログイン
+          </button>
+        </div>
+      </form>
       {loaderData.devLogin && (
         <form
           onSubmit={(event) => void dev(event)}
