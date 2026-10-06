@@ -4,6 +4,11 @@ import helmet from "@fastify/helmet";
 import { buildCspDirectives, CSP_NONCE_HEADER, CSP_REPORT_PATH, serializeCsp } from "../csp.ts";
 
 const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+const OAUTH_PROTOCOL_PATHS = new Set([
+  "/api/auth/oauth2/token",
+  "/api/auth/oauth2/introspect",
+  "/api/auth/oauth2/revoke",
+]);
 
 /**
  * HTTP ヘッダと CSRF (lumorphia/prismtone の security plugin と同じ考え方)。
@@ -66,10 +71,11 @@ export const securityPlugin = fp(
     );
 
     // CSRF: 変更系は同一オリジンからの Origin ヘッダを要求する。
-    // OIDC のトークンの入口 (サービスのサーバーから Origin なしで来る) は A1.2 で外す (docs/plan.md 4.1)
+    // OIDC のサーバー間の入口はクライアント認証で守る (docs/plan.md 4.1)。
     app.addHook("onRequest", async (req, reply) => {
       if (!MUTATING.has(req.method) || !req.url.startsWith("/api/")) return;
       if (req.url === CSP_REPORT_PATH) return;
+      if (req.method === "POST" && OAUTH_PROTOCOL_PATHS.has(req.url.split("?")[0]!)) return;
       const origin = req.headers.origin;
       if (!origin) {
         return reply.code(403).send({ error: { code: "forbidden", message: "missing origin" } });

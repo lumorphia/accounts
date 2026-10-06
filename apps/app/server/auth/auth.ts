@@ -10,6 +10,7 @@ import { resolveAccountProfile, withAccountProfile } from "./account-display-nam
 import { miauth } from "./miauth.ts";
 import { mastodon } from "./mastodon.ts";
 import { installOAuthMockFetch } from "./oauth-mock-fetch.ts";
+import { oidcPlugins } from "./oidc.ts";
 
 export type AuthDeps = {
   db: Database;
@@ -47,7 +48,12 @@ export function createAuth({ db, env, miauthFetch, mastodonFetch }: AuthDeps) {
     secret: env.AUTH_SECRET,
     trustedOrigins: [env.AUTH_BASE_URL],
     onAPIError: { errorURL: `${env.AUTH_BASE_URL}/login` },
-    database: drizzleAdapter(db, { provider: "pg", usePlural: true, schema }),
+    disabledPaths: ["/token"],
+    database: drizzleAdapter(db, {
+      provider: "pg",
+      usePlural: true,
+      schema: { ...schema, jwkss: schema.jwks },
+    }),
     advanced: {
       database: { generateId: false },
       cookiePrefix: "lumorphia",
@@ -106,6 +112,7 @@ export function createAuth({ db, env, miauthFetch, mastodonFetch }: AuthDeps) {
       },
     },
     plugins: [
+      ...oidcPlugins(db),
       ...(env.NODE_ENV === "production" ? [] : [devLogin({ db })]),
       miauth({
         appName: "Lumorphia",
