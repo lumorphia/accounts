@@ -1,0 +1,197 @@
+@import "tailwindcss";
+
+/*
+ * 配色トークン。写真が主役なので UI は控えめに。ライトは紙と焼き土 (クリームの地、こげ茶の文字、
+ * テラコッタのアクセント)、ダークは夕暮れ (葡萄茶の地、珊瑚のアクセント)。アクセントは一色に絞る。値はここでだけ決め、画面側は意味名で参照する。
+ */
+:root {
+  color-scheme: light;
+  --surface: #faf6ef;
+  --surface-raised: #fffdf8;
+  --surface-muted: #f3ecdf;
+  --surface-hover: #efe6d6;
+  --ink: #2a211b;
+  --ink-secondary: #5a4a3d;
+  /* 地 3 色 (surface / raised / muted) のどれに載せても 4.5:1 を超える (WCAG AA)。#8a7767 は 3.97 で足りなかった */
+  --ink-muted: #7a6757;
+  --line: #d9cbb8;
+  --line-soft: #e9dfcf;
+  --accent: #c2410c;
+  --accent-strong: #9a3412;
+  --accent-ink: #fff8f1;
+  /*
+   * 形。角丸と影も色と同じくここでだけ決める。影は明るい地の上でカードが少し浮いて見える程度
+   * (薄すぎると見えない。カードの間隔 20px とセット)。トップと一覧に当てている。他の画面は追って
+   */
+  --radius-card: 0.875rem;
+  --radius-control: 0.625rem;
+  --shadow-color: 42 33 27;
+  --shadow-card:
+    0 2px 6px rgb(var(--shadow-color) / 0.1), 0 12px 24px -8px rgb(var(--shadow-color) / 0.3);
+  --shadow-card-hover:
+    0 4px 10px rgb(var(--shadow-color) / 0.12), 0 20px 36px -10px rgb(var(--shadow-color) / 0.4);
+  --shadow-hero: 0 10px 30px -12px rgb(var(--shadow-color) / 0.35);
+}
+
+/*
+ * ダークの値。<html data-theme="dark"> で明示されたとき、または data-theme が light でなく OS がダークのとき。
+ * 切り替えの仕組みは A1.1 以降で足す (lumorphia/prismtone の features/theme/)。dark: ユーティリティも同じ条件 (下の @custom-variant)
+ */
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface: #221a1e;
+  --surface-raised: #2e2429;
+  --surface-muted: #2e2429;
+  --surface-hover: #3b2f35;
+  --ink: #f6eef0;
+  --ink-secondary: #dccbd1;
+  --ink-muted: #ab959c;
+  --line: #5e4a52;
+  --line-soft: #40323a;
+  --accent: #f28b7d;
+  --accent-strong: #f6a89d;
+  --accent-ink: #221a1e;
+  --shadow-color: 0 0 0;
+  /* ダークでは黒い影が地に溶けるので、薄い白の縁取りで面を立たせる */
+  --shadow-card:
+    0 0 0 1px rgb(255 255 255 / 0.08), 0 2px 6px rgb(0 0 0 / 0.35),
+    0 12px 24px -8px rgb(0 0 0 / 0.6);
+  --shadow-card-hover:
+    0 0 0 1px rgb(255 255 255 / 0.14), 0 4px 10px rgb(0 0 0 / 0.4),
+    0 20px 36px -10px rgb(0 0 0 / 0.7);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --surface: #221a1e;
+    --surface-raised: #2e2429;
+    --surface-muted: #2e2429;
+    --surface-hover: #3b2f35;
+    --ink: #f6eef0;
+    --ink-secondary: #dccbd1;
+    --ink-muted: #ab959c;
+    --line: #5e4a52;
+    --line-soft: #40323a;
+    --accent: #f28b7d;
+    --accent-strong: #f6a89d;
+    --accent-ink: #221a1e;
+    --shadow-color: 0 0 0;
+    --shadow-card:
+      0 0 0 1px rgb(255 255 255 / 0.08), 0 2px 6px rgb(0 0 0 / 0.35),
+      0 12px 24px -8px rgb(0 0 0 / 0.6);
+    --shadow-card-hover:
+      0 0 0 1px rgb(255 255 255 / 0.14), 0 4px 10px rgb(0 0 0 / 0.4),
+      0 20px 36px -10px rgb(0 0 0 / 0.7);
+  }
+}
+
+@theme inline {
+  --font-sans: "Inter", "Noto Sans JP", system-ui, sans-serif;
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-hover: var(--surface-hover);
+  --color-ink: var(--ink);
+  --color-ink-secondary: var(--ink-secondary);
+  --color-ink-muted: var(--ink-muted);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-ink: var(--accent-ink);
+  --radius-card: var(--radius-card);
+  --radius-control: var(--radius-control);
+  --shadow-card: var(--shadow-card);
+  --shadow-card-hover: var(--shadow-card-hover);
+  --shadow-hero: var(--shadow-hero);
+}
+
+/*
+ * <dialog>: preflight が margin を 0 にするので、そのままだと左上に出る。中央に置き、余白を取る。
+ * 外側 (backdrop) のクリックで閉じる処理は各コンポーネント (target が dialog 自身なら閉じる)
+ */
+dialog[open] {
+  margin: auto;
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
+}
+
+/* キーボード操作のフォーカスはアクセント色で見せる。マウスのクリックでは出さない */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* 規約・プライバシーポリシー・about (docs/legal/*.md を HTML にしたもの) の本文の見た目 */
+.legal {
+  line-height: 1.8;
+}
+.legal h1 {
+  margin-block: 0.5rem 1.5rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.legal h2 {
+  margin-block: 2rem 0.75rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+.legal h3 {
+  margin-block: 1.25rem 0.5rem;
+  font-weight: 600;
+}
+.legal p,
+.legal ul,
+.legal ol,
+.legal table {
+  margin-block: 0.75rem;
+  font-size: 0.9375rem;
+}
+.legal ul,
+.legal ol {
+  padding-inline-start: 1.5rem;
+}
+.legal ul {
+  list-style: disc;
+}
+.legal ol {
+  list-style: decimal;
+}
+.legal li {
+  margin-block: 0.25rem;
+}
+.legal a {
+  text-decoration: underline;
+}
+.legal table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.legal th,
+.legal td {
+  padding: 0.375rem 0.5rem;
+  border-top: 1px solid var(--line-soft);
+  text-align: left;
+  vertical-align: top;
+}
+.legal th {
+  font-size: 0.75rem;
+  color: var(--ink-muted);
+}
+.legal hr {
+  margin-block: 2rem;
+  border-color: var(--line-soft);
+}
