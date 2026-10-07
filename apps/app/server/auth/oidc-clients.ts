@@ -29,7 +29,7 @@ export function serviceClientMetadata(config: ServiceClientConfig) {
       ),
     },
     redirect_uris: [webUri(config.redirectUri)],
-    scope: `openid profile email lumorphia:characters${config.service === "prismtone" ? " lumorphia:identities" : ""}`,
+    scope: `openid profile email lumorphia:characters${config.service === "prismtone" ? " lumorphia:identities lumorphia:legacy" : ""}`,
     grant_types: ["authorization_code"] as ["authorization_code"],
     response_types: ["code"] as ["code"],
     token_endpoint_auth_method: "client_secret_post" as const,

@@ -9,6 +9,8 @@ const OAUTH_PROTOCOL_PATHS = new Set([
   "/api/auth/oauth2/token",
   "/api/auth/oauth2/introspect",
   "/api/auth/oauth2/revoke",
+  // 専用 scope と Bearer の sub を検証するサービス間の完了通知。Cookie は使わない。
+  "/api/legacy/prismtone/complete",
 ]);
 
 /**

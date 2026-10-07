@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
+import { LegacyMigrationGuide } from "../components/legacy-migration-guide.tsx";
 import { loginNext } from "../auth/login-next.ts";
 import type { Route } from "./+types/welcome";
 
@@ -71,6 +72,7 @@ export default function Welcome(_: Route.ComponentProps) {
     <main className="mx-auto max-w-md space-y-5 p-8">
       <h1 className="text-2xl font-semibold">アカウントを設定</h1>
       <p className="text-sm text-ink-muted">Lumorphia で使う ID と表示名を決めてください。</p>
+      {!loading && <LegacyMigrationGuide onChooseHandle={setHandle} />}
       {!loading && (
         <form onSubmit={(event) => void submit(event)} className="space-y-4">
           <label htmlFor="welcome-handle" className="block text-sm">

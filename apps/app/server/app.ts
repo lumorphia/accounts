@@ -17,6 +17,7 @@ import { authPlugin, type AuthPluginOptions } from "./plugins/auth.ts";
 import { characterPlugin, type CharacterPluginOptions } from "./plugins/characters.ts";
 import { accountLifecycleRoutes } from "./routes/account-lifecycle.ts";
 import { characterRoutes } from "./routes/characters.ts";
+import { legacyLedgerRoutes } from "./routes/legacy-ledger.ts";
 import { meRoutes } from "./routes/me.ts";
 import { securityPlugin } from "./plugins/security.ts";
 import { errorsPlugin } from "./plugins/errors.ts";
@@ -104,6 +105,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
       await api.register(healthRoutes);
       if (!opts.skipDb) {
         await api.register(meRoutes);
+        await api.register(legacyLedgerRoutes);
         await api.register(characterRoutes);
         await api.register(accountLifecycleRoutes);
       }

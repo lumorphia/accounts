@@ -4,3 +4,4 @@ export * from "./domain/users.ts";
 export * from "./domain/avatar.ts";
 export * from "./domain/characters.ts";
 export * from "./domain/account-deletion.ts";
+export * from "./domain/legacy-ledger.ts";
