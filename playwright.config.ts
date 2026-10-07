@@ -63,6 +63,7 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
       env: {
+        FEATURE_ACCOUNT_LIFECYCLE: "1",
         FEATURE_LODESTONE: "1",
         LODESTONE_BASE_URL: `http://127.0.0.1:${LODESTONE_PORT}`,
         LODESTONE_USER_AGENT: "lumorphia-accounts/e2e",

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { AccountLifecycleSettings } from "../components/account-lifecycle-settings.tsx";
 import { CharacterSettings } from "../components/character-settings.tsx";
 import type { Route } from "./+types/settings";
 
@@ -444,6 +445,7 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
               </button>
             </form>
           </section>
+          <AccountLifecycleSettings handle={user.handle} />
         </>
       )}
     </main>

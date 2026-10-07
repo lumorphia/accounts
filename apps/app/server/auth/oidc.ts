@@ -1,8 +1,9 @@
 import { getOAuthProviderApi, oauthProvider } from "@better-auth/oauth-provider";
 import type { BetterAuthPlugin } from "better-auth";
-import { jwt } from "better-auth/plugins/jwt";
+import { jwt, signJWT } from "better-auth/plugins/jwt";
 import { z } from "zod";
 import { APIError, createAuthEndpoint } from "better-auth/api";
+import { visitService } from "@lumorphia-accounts/core";
 import { eq, schema, type Database } from "@lumorphia-accounts/db";
 
 export const OIDC_CLAIM_NAMESPACE = "https://lumorphia.com/";
@@ -65,7 +66,12 @@ export function oidcPlugins(db: Database) {
     allowDynamicClientRegistration: false,
     allowUnauthenticatedClientRegistration: false,
     clientPrivileges: ({ user }) => user?.role === "admin" && user?.status === "active",
-    customIdTokenClaims: ({ user, scopes }) => lumorphiaClaims(db, user.id, scopes),
+    customIdTokenClaims: async ({ user, scopes, metadata }) => {
+      const claims = await lumorphiaClaims(db, user.id, scopes);
+      if (typeof metadata?.lumorphia_service === "string")
+        await visitService({ db }, user.id, metadata.lumorphia_service);
+      return claims;
+    },
     customUserInfoClaims: ({ user, scopes }) => lumorphiaClaims(db, user.id, scopes),
   });
   type CompatibleProvider = Omit<typeof provider, "endpoints"> & {
@@ -74,9 +80,45 @@ export function oidcPlugins(db: Database) {
         NonNullable<BetterAuthPlugin["endpoints"]>[string];
     };
   };
+  const keys = jwt({
+    jwks: {
+      keyPairConfig: { alg: "EdDSA", crv: "Ed25519" },
+      rotationInterval: 90 * 86_400,
+      gracePeriod: 7 * 86_400,
+    },
+  });
   const access = {
     id: "character-access",
     endpoints: {
+      signAccountEvent: createAuthEndpoint.serverOnly(
+        {
+          method: "POST",
+          body: z.object({
+            aud: z.string().min(1),
+            sub: z.string().uuid(),
+            jti: z.string().uuid(),
+            lifecycle: z.object({
+              service: z.string(),
+              revision: z.number().int().positive(),
+              state: z.enum(["active", "deleted", "purged"]),
+              scope: z.enum(["account", "service"]),
+              occurredAt: z.string(),
+              deletedAt: z.string().nullable(),
+              recoverUntil: z.string().nullable(),
+            }),
+          }),
+        },
+        async (ctx) => {
+          const iat = Math.floor(Date.now() / 1000);
+          return {
+            token: await signJWT(ctx, {
+              options: keys.options,
+              header: { typ: "lumorphia-account-event+jwt" },
+              payload: { ...ctx.body, iss: ctx.context.baseURL, iat, exp: iat + 120 },
+            }),
+          };
+        },
+      ),
       // パスを持たないサーバー内専用の呼び出し。HTTP の auth catch-all には公開しない。
       characterAccess: createAuthEndpoint(
         {
@@ -90,13 +132,7 @@ export function oidcPlugins(db: Database) {
   } satisfies BetterAuthPlugin;
   return [
     access,
-    jwt({
-      jwks: {
-        keyPairConfig: { alg: "EdDSA", crv: "Ed25519" },
-        rotationInterval: 90 * 86_400,
-        gracePeriod: 7 * 86_400,
-      },
-    }),
+    keys,
     // 1.7.7 の OpenAPI metadata の型は exactOptionalPropertyTypes と合わない。
     // 実行時の plugin を変えず、具体的な endpoint の型を残して境界だけ合わせる。
     provider as unknown as CompatibleProvider,

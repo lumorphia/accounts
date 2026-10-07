@@ -1,6 +1,11 @@
 import { randomBytes } from "node:crypto";
-import { PENDING_HANDLE_PREFIX } from "@lumorphia-accounts/core";
+import {
+  DomainError,
+  PENDING_HANDLE_PREFIX,
+  restoreAccountForLogin,
+} from "@lumorphia-accounts/core";
 import { betterAuth, type BetterAuthOptions } from "better-auth";
+import { APIError } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import type { Database } from "@lumorphia-accounts/db";
 import * as schema from "@lumorphia-accounts/db/schema";
@@ -84,6 +89,20 @@ export function createAuth({ db, env, miauthFetch, mastodonFetch }: AuthDeps) {
       deleteUser: { enabled: false },
     },
     databaseHooks: {
+      session: {
+        create: {
+          before: async (session) => {
+            try {
+              await restoreAccountForLogin({ db }, session.userId);
+            } catch (error) {
+              if (error instanceof DomainError)
+                throw APIError.from("FORBIDDEN", { code: error.message, message: error.message });
+              throw error;
+            }
+            return { data: session };
+          },
+        },
+      },
       account: {
         create: {
           before: async (account, ctx) => {

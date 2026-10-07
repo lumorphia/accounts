@@ -18,6 +18,8 @@ export const users = pgTable(
     status: text("status", { enum: ["pending", "active", "suspended", "deleted"] })
       .notNull()
       .default("pending"),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    restoredAt: timestamp("restored_at", { withTimezone: true }),
     handleChangedAt: timestamp("handle_changed_at", { withTimezone: true }),
     ...timestamps,
   },

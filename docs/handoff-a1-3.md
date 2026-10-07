@@ -42,4 +42,4 @@ API と共有取得制御のテスト、設定画面の E2E を実装前に失�
 
 確認: 単体・PostgreSQL の DB テスト全体 328 件 (新規 18 件)、HTTPS E2E 全体 24 件 (新規 3 件)、行 90.8%、branch 80.87%。lint・format:check・typecheck も成功。
 
-A1.3c の CI が緑になってから develop に Rebase and merge する。次は A1.4 (退会 2 種類、30 日の復旧、物理削除、通知の再送)。本番 compose と監視の接続は A1.6 のまま。
+A1.3c は PR #12 の CI が緑になってから develop に Rebase and merge 済み。次は A1.4 (退会 2 種類、30 日の復旧、物理削除、通知の再送)。本番 compose と監視の接続は A1.6 のまま。

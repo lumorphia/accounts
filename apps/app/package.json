@@ -9,7 +9,8 @@
     "start": "NODE_ENV=production node --env-file-if-exists=../../.env --import ./server/sentry.ts ./server/index.ts",
     "typecheck": "react-router typegen && tsc -p tsconfig.json",
     "test": "vitest run",
-    "worker:characters": "node --env-file-if-exists=../../.env --import ./server/sentry.ts ./server/character-worker.ts"
+    "worker:characters": "node --env-file-if-exists=../../.env --import ./server/sentry.ts ./server/character-worker.ts",
+    "worker:accounts": "node --env-file-if-exists=../../.env --import ./server/sentry.ts ./server/account-worker.ts"
   },
   "dependencies": {
     "@fastify/helmet": "^13.1.1",

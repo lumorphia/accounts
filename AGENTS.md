@@ -17,7 +17,7 @@ lumorphia/accounts: Lumorphia アカウント。ログイン、handle、表示�
 
 ```
 apps/app        React Router (SSR) + Fastify。画面と API と、のちに OIDC の発行元
-packages/core   利用者・アイコン・キャラクターのドメイン、Lodestone、pg-boss のキャラクタージョブ
+packages/core   利用者・アイコン・キャラクターのドメイン、Lodestone、pg-boss のキャラクター・退会ジョブ
 packages/db     Drizzle のスキーマとマイグレーション、ファイルごとの専用 DB を作るテストの仕組み
 e2e/            Playwright。https の accounts.lumorphia.test で回す
 docker/         開発の Caddy (Caddyfile.dev)
@@ -82,6 +82,7 @@ pnpm test                                   # 単体・DB テスト (DATABASE_UR
 pnpm e2e                                    # Playwright (https)
 pnpm dev:certs                              # 開発と E2E の TLS を作る (あれば作り直さない)
 pnpm worker:characters                      # キャラクター worker (FEATURE_LODESTONE=0 が既定)
+pnpm worker:accounts                        # 退会 worker (FEATURE_ACCOUNT_LIFECYCLE=0 が既定)
 ```
 
 DB テストを手元で回すとき: `DATABASE_URL=$(grep '^DATABASE_URL' .env | cut -d= -f2-) pnpm test`

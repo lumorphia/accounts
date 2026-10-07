@@ -91,6 +91,12 @@ export default function Login({ loaderData }: Route.ComponentProps) {
   return (
     <main className="mx-auto max-w-sm space-y-6 p-8">
       <h1 className="text-2xl font-semibold">Lumorphia にログイン</h1>
+      {params.get("deleted") === "1" && (
+        <p role="status" className="text-sm">
+          退会を受け付けました。30
+          日以内に同じアカウントで再ログインすると復旧できます。画像は戻りません。
+        </p>
+      )}
       <p className="text-sm text-ink-muted">Lumorphia アカウントでサービスにログインできます。</p>
       <div className="space-y-2">
         {loaderData.providers.map(({ id, label }) => (

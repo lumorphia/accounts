@@ -11,4 +11,6 @@
 
 | [0007](0007-character-api-and-shared-pacing.md) | キャラクター API の権限と Lodestone の取得順を共有する |
 
+| [0008](0008-account-lifecycle-outbox.md) | 退会・復旧・物理削除を永続的な送信待ちの表で配送する |
+
 本文中の「prismtone ADR-NNNN」は lumorphia/prismtone の ADR を指す。全体の計画は [plan.md](../plan.md)。
