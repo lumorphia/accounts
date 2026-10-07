@@ -12,6 +12,8 @@ export default defineConfig({
         "**/*.test.ts",
         "**/*.d.ts",
         "**/index.ts",
+        // Lodestone の HTML は入力データ。実行コードとして解析しない
+        "**/fixtures/**",
         "packages/db/src/migrate.ts",
         // テスト基盤 (ファイルごとの専用 DB)。テストの外では使わない
         "packages/db/src/test-database.ts",

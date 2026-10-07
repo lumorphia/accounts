@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./domain/*": "./src/domain/*.ts"
+    "./domain/*": "./src/domain/*.ts",
+    "./adapters/lodestone": "./src/adapters/lodestone/index.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json"
@@ -13,6 +14,7 @@
   "dependencies": {
     "@lumorphia-accounts/db": "workspace:*",
     "@lumorphia/media": "1.0.0",
-    "@lumorphia/storage": "1.0.0"
+    "@lumorphia/storage": "1.0.0",
+    "node-html-parser": "^9.0.4"
   }
 }
