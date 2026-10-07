@@ -55,6 +55,8 @@ describe.skipIf(!databaseUrl)("Mastodon", () => {
       mastodonFetch: fakeMastodon as typeof fetch,
     });
     await app.ready();
+    // 専用 DB は次回も使う。過去の実行と同じポートになっても登録の検証を始め直す
+    await app.db.delete(schema.mastodonApps).where(eq(schema.mastodonApps.host, host));
   });
   afterAll(async () => {
     await app?.close();
