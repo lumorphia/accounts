@@ -21,6 +21,9 @@ export const users = pgTable(
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     restoredAt: timestamp("restored_at", { withTimezone: true }),
     handleChangedAt: timestamp("handle_changed_at", { withTimezone: true }),
+    termsVersion: text("terms_version"),
+    privacyVersion: text("privacy_version"),
+    legalAcceptedAt: timestamp("legal_accepted_at", { withTimezone: true }),
     ...timestamps,
   },
   (t) => [uniqueIndex("users_handle_idx").on(t.handle), uniqueIndex("users_email_idx").on(t.email)],
@@ -86,4 +89,11 @@ export const mastodonApps = pgTable("mastodon_apps", {
   clientId: text("client_id").notNull(),
   clientSecret: text("client_secret").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** 利用者の情報を持たない、worker の死活確認だけの記録。 */
+export const workerHeartbeats = pgTable("worker_heartbeats", {
+  name: text("name").primaryKey(),
+  enabled: boolean("enabled").notNull(),
+  seenAt: timestamp("seen_at", { withTimezone: true }).notNull(),
 });

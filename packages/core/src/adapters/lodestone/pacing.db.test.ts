@@ -53,13 +53,18 @@ describe.skipIf(!databaseUrl)("shared Lodestone pacing (PostgreSQL)", () => {
   it("commits failed request pacing before another process can run", async () => {
     const a = new PostgresLodestonePacer(first.db, 60);
     const b = new PostgresLodestonePacer(second.db, 60);
+    let failedAt = 0;
     await expect(
       a.run(async () => {
+        failedAt = performance.now();
         throw new Error("test-network-failure");
       }),
     ).rejects.toThrow("test-network-failure");
-    const start = performance.now();
-    await b.run(async () => "ok");
-    expect(performance.now() - start).toBeGreaterThanOrEqual(55);
+    // 取得の失敗時点から次の取得開始までを測る。
+    // commit と assertion の時間を、必要な間隔から差し引かない。
+    await b.run(async () => {
+      expect(performance.now() - failedAt).toBeGreaterThanOrEqual(55);
+      return "ok";
+    });
   });
 });

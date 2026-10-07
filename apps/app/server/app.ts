@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { fastify, type FastifyInstance } from "fastify";
+import { fastify, LogController, type FastifyInstance } from "fastify";
 import underPressure from "@fastify/under-pressure";
 import rateLimit from "@fastify/rate-limit";
 import {
@@ -48,6 +48,8 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
     ...(https ? { https } : {}),
     genReqId: () => randomUUID(),
     logger: loggerOptions({ level: env.LOG_LEVEL }),
+    // 本番は HTTP のアクセスログを収集せず、運用イベントだけを記録する。
+    logController: new LogController({ disableRequestLogging: env.NODE_ENV === "production" }),
     trustProxy: true,
     ajv: { customOptions: { removeAdditional: false } },
   }).withTypeProvider<ZodTypeProvider>();

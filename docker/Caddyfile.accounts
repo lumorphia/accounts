@@ -1,0 +1,7 @@
+# 既存 Caddyfile に import する断片。80/443 を持つ Caddy は増やさない。
+# 既存 proxy を lumorphia-edge に永続的に接続し、Cloudflare の接続元制限を適用してから使う。
+accounts.lumorphia.com {
+    tls /certs/accounts-origin.pem /certs/accounts-origin-key.pem
+    encode zstd gzip
+    reverse_proxy accounts-web:3100
+}

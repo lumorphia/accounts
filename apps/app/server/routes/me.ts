@@ -18,6 +18,7 @@ import { readRemoteAvatar } from "../auth/remote-avatar.ts";
 import { refreshLinkedAccountProfiles } from "../auth/refresh-account-profiles.ts";
 import { DomainError } from "../plugins/errors.ts";
 import { withErrors } from "../schemas/error.ts";
+import { TERMS_VERSION, PRIVACY_VERSION } from "@lumorphia-accounts/core/domain/legal-consent";
 
 const meSchema = z.object({
   id: z.string(),
@@ -49,6 +50,15 @@ const nameInput = z
   .max(NAME_MAX_LENGTH * 2);
 
 export const meRoutes: FastifyPluginAsyncZod = async (app) => {
+  app.get(
+    "/legal",
+    {
+      schema: {
+        response: { 200: z.object({ termsVersion: z.string(), privacyVersion: z.string() }) },
+      },
+    },
+    async () => ({ termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION }),
+  );
   app.get(
     "/me",
     {
@@ -99,7 +109,15 @@ export const meRoutes: FastifyPluginAsyncZod = async (app) => {
     "/me/onboarding",
     {
       schema: {
-        body: z.object({ handle: handleInput, name: nameInput }),
+        body: z.object({
+          handle: handleInput,
+          name: nameInput,
+          consent: z.object({
+            termsVersion: z.string(),
+            privacyVersion: z.string(),
+            ageConfirmed: z.literal(true),
+          }),
+        }),
         response: withErrors({ 200: z.object({ profile: profileSchema }) }),
       },
       preValidation: [app.requireSession],

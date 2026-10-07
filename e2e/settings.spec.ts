@@ -67,6 +67,8 @@ test("a pending visitor returns to settings after onboarding", async ({ page }) 
   await gotoHydrated(page, "/settings");
   await page.waitForURL("**/welcome?next=%2Fsettings");
   await page.getByTestId("welcome-handle").fill(handle);
+  await page.getByLabel("15歳以上です").check();
+  await page.getByLabel("利用規約とプライバシーポリシーを読み、同意します").check();
   await page.getByRole("button", { name: "設定を完了" }).click();
   await page.waitForURL("**/settings");
   await expect(page.getByTestId("settings-handle")).toHaveValue(handle);

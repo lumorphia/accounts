@@ -48,7 +48,11 @@ describe.skipIf(!url)("user profiles", () => {
   });
 
   it("activates a pending user with their chosen handle and trimmed name", async () => {
-    await completeOnboarding(db, pendingId, { handle: `new_${stamp}`, name: "  New User  " });
+    await completeOnboarding(db, pendingId, {
+      handle: `new_${stamp}`,
+      name: "  New User  ",
+      consent: { termsVersion: "1.0", privacyVersion: "1.0", ageConfirmed: true },
+    });
     expect(await getProfile(db, pendingId)).toMatchObject({
       handle: `new_${stamp}`,
       name: "New User",

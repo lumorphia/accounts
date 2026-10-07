@@ -95,14 +95,22 @@ describe.skipIf(!url)("legacy account ledger (PostgreSQL)", () => {
     const other = await user(undefined, "pending");
     await importLegacyLedger(database.db, { service: "prismtone", accounts: [a] });
     await expect(
-      completeOnboarding(database.db, other.id, { handle: a.handle, name: "Test" }),
+      completeOnboarding(database.db, other.id, {
+        handle: a.handle,
+        name: "Test",
+        consent: { termsVersion: "1.0", privacyVersion: "1.0", ageConfirmed: true },
+      }),
     ).rejects.toMatchObject({ code: "conflict" });
   });
   it("allows the matching pending user to select their old handle", async () => {
     const a = record();
     const owner = await user(a.identities[0], "pending");
     await importLegacyLedger(database.db, { service: "prismtone", accounts: [a] });
-    await completeOnboarding(database.db, owner.id, { handle: a.handle, name: "Test" });
+    await completeOnboarding(database.db, owner.id, {
+      handle: a.handle,
+      name: "Test",
+      consent: { termsVersion: "1.0", privacyVersion: "1.0", ageConfirmed: true },
+    });
     expect(
       (await database.db.query.users.findFirst({ where: eq(schema.users.id, owner.id) }))?.handle,
     ).toBe(a.handle);
