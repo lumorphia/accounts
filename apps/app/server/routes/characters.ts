@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { APIError } from "better-auth/api";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { eq, schema } from "@lumorphia-accounts/db";
 import {
@@ -13,6 +12,7 @@ import {
 } from "@lumorphia-accounts/core";
 import { DomainError } from "../plugins/errors.ts";
 import { withErrors } from "../schemas/error.ts";
+import { requireServiceAccess } from "../auth/service-access.ts";
 
 const commonSchema = z.object({
   id: z.string().uuid(),
@@ -154,47 +154,11 @@ export const characterRoutes: FastifyPluginAsyncZod = async (app) => {
       },
     },
     async (req, reply) => {
-      const match = /^Bearer ([^\s]+)$/i.exec(req.headers.authorization ?? "");
-      if (!match) {
-        reply.header("www-authenticate", 'Bearer realm="characters"');
-        throw new DomainError("unauthorized", "access_token_required");
-      }
-      const access = await app.auth.api
-        .characterAccess({ body: { token: match[1]! } })
-        .catch((error: unknown) => {
-          if (!(error instanceof APIError)) throw error;
-          reply.header("www-authenticate", 'Bearer error="invalid_token"');
-          throw new DomainError("unauthorized", "invalid_access_token");
-        });
-      // この API は登録済みサービスの、本人が許可した読み取りだけを扱う。
-      const client =
-        typeof access.client_id === "string"
-          ? await app.db.query.oauthClients.findFirst({
-              where: eq(schema.oauthClients.clientId, access.client_id),
-            })
-          : undefined;
-      if (
-        !client ||
-        client.disabled ||
-        !["prismtone", "scenote", "facetia"].includes(client.name ?? "") ||
-        !client.scopes?.includes("lumorphia:characters") ||
-        access.token_type !== "Bearer" ||
-        access.cnf ||
-        !access.sub
-      ) {
-        reply.header("www-authenticate", 'Bearer error="invalid_token"');
-        throw new DomainError("unauthorized", "invalid_access_token");
-      }
-      if (
-        typeof access.scope !== "string" ||
-        !access.scope.split(" ").includes("lumorphia:characters")
-      ) {
-        reply.header(
-          "www-authenticate",
-          'Bearer error="insufficient_scope", scope="lumorphia:characters"',
-        );
-        throw new DomainError("forbidden", "character_scope_required");
-      }
+      const access = await requireServiceAccess(app, req, reply, {
+        scope: "lumorphia:characters",
+        scopeError: "character_scope_required",
+        realm: "characters",
+      });
       const user = await app.db.query.users.findFirst({
         where: eq(schema.users.id, access.sub),
         columns: { status: true },
