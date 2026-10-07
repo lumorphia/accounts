@@ -14,10 +14,22 @@ export default function Welcome(_: Route.ComponentProps) {
   const [handle, setHandle] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [consent, setConsent] = useState<{ termsVersion: string; privacyVersion: string } | null>(
+    null,
+  );
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const [legalConfirmed, setLegalConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
   const next = loginNext(params);
 
   useEffect(() => {
+    void fetch("/api/legal")
+      .then((res) => {
+        if (!res.ok) throw new Error("legal unavailable");
+        return res.json();
+      })
+      .then(setConsent)
+      .catch(() => setError("規約を読み込めませんでした。再読み込みしてください。"));
     void fetch("/api/me")
       .then((res) => res.json())
       .then((data: { user: { name: string; status: string } | null }) => {
@@ -48,6 +60,7 @@ export default function Welcome(_: Route.ComponentProps) {
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!consent || !ageConfirmed || !legalConfirmed) return;
     setBusy(true);
     setError(null);
     try {
@@ -55,7 +68,7 @@ export default function Welcome(_: Route.ComponentProps) {
         method: "POST",
         credentials: "same-origin",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ handle, name }),
+        body: JSON.stringify({ handle, name, consent: { ...consent, ageConfirmed } }),
       });
       if (!res.ok) {
         const body = (await res.json()) as { error?: { message?: string } };
@@ -100,9 +113,36 @@ export default function Welcome(_: Route.ComponentProps) {
             required
             className="w-full rounded border border-line bg-surface-raised p-2"
           />
+          <label className="flex gap-2 text-sm">
+            <input
+              type="checkbox"
+              required
+              checked={ageConfirmed}
+              onChange={(event) => setAgeConfirmed(event.target.checked)}
+            />
+            15歳以上です
+          </label>
+          <label className="flex gap-2 text-sm">
+            <input
+              type="checkbox"
+              required
+              checked={legalConfirmed}
+              onChange={(event) => setLegalConfirmed(event.target.checked)}
+            />
+            <span>
+              <a href="/terms" target="_blank" rel="noopener" className="underline">
+                利用規約
+              </a>
+              と
+              <a href="/privacy" target="_blank" rel="noopener" className="underline">
+                プライバシーポリシー
+              </a>
+              を読み、同意します
+            </span>
+          </label>
           <button
             type="submit"
-            disabled={busy}
+            disabled={busy || !consent || !ageConfirmed || !legalConfirmed}
             className="rounded bg-accent px-4 py-2 text-accent-ink disabled:opacity-50"
           >
             設定を完了

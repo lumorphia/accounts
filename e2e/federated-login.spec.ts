@@ -26,6 +26,8 @@ test.describe("federated login", () => {
       expect(me.user.handle).toMatch(/^pending_/);
       const handle = `u_${Date.now().toString(36)}`;
       await page.getByTestId("welcome-handle").fill(handle);
+      await page.getByLabel("15歳以上です").check();
+      await page.getByLabel("利用規約とプライバシーポリシーを読み、同意します").check();
       await page.getByRole("button", { name: "設定を完了" }).click();
       await page.waitForURL("/");
       const active = await page.evaluate(async () => (await fetch("/api/me")).json());

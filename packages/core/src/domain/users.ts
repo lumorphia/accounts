@@ -2,6 +2,7 @@ import { and, asc, eq, schema, type Database } from "@lumorphia-accounts/db";
 import { DomainError } from "./errors.ts";
 import { assertLegacyHandleAccess, withLegacyHandleLock } from "./legacy-ledger.ts";
 import { HANDLE_CHANGE_COOLDOWN_DAYS, validateHandle } from "./handle.ts";
+import { TERMS_VERSION, PRIVACY_VERSION, type LegalConsent } from "./legal-consent.ts";
 
 export const NAME_MAX_LENGTH = 50;
 
@@ -52,9 +53,15 @@ export async function handleAvailability(db: Database, handle: string, selfId: s
 export async function completeOnboarding(
   db: Database,
   userId: string,
-  input: { handle: string; name: string },
+  input: { handle: string; name: string; consent?: LegalConsent | undefined },
   now = new Date(),
 ) {
+  if (
+    input.consent?.termsVersion !== TERMS_VERSION ||
+    input.consent.privacyVersion !== PRIVACY_VERSION ||
+    input.consent.ageConfirmed !== true
+  )
+    throw new DomainError("validation", "current legal consent and age confirmation are required");
   return withLegacyHandleLock(db, async (tx) => {
     assertHandle(input.handle);
     const name = normalizeName(input.name);
@@ -69,7 +76,15 @@ export async function completeOnboarding(
     try {
       const rows = await tx
         .update(schema.users)
-        .set({ handle: input.handle, name, status: "active", handleChangedAt: now })
+        .set({
+          handle: input.handle,
+          name,
+          status: "active",
+          handleChangedAt: now,
+          termsVersion: TERMS_VERSION,
+          privacyVersion: PRIVACY_VERSION,
+          legalAcceptedAt: now,
+        })
         .where(and(eq(schema.users.id, userId), eq(schema.users.status, "pending")))
         .returning({ id: schema.users.id });
       if (rows.length === 0) throw new DomainError("conflict", "account already set up");

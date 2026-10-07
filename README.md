@@ -2,7 +2,7 @@
 
 Lumorphia アカウント。Lumorphia のサービス (Prismtone、Scenote) のログイン、handle、キャラクター (Lodestone の確認) を受け持ち、各サービスには OIDC で「Lumorphia でログイン」を提供する。
 
-計画は [docs/plan.md](docs/plan.md)、判断は [docs/adr/](docs/adr/)、弱点の知らせ方は [SECURITY.md](SECURITY.md)。A1.2 (OIDC の発行元) まで完了し、A1.3 (キャラクター) を進めている。続きの手順は [引き継ぎ](docs/handoff-a1-3.md)。
+計画は [docs/plan.md](docs/plan.md)、判断は [docs/adr/](docs/adr/)、弱点の知らせ方は [SECURITY.md](SECURITY.md)。A1.6 の公開準備まで実装済み。本番公開はまだ行っていない。続きは [引き継ぎ](docs/handoff-a1-6.md)。本番の手順は [起動と更新](docs/runbook/deploy.md)、[監視](docs/runbook/monitoring.md)、[バックアップ](docs/runbook/backup.md)、[公開判断](docs/runbook/release.md)。
 
 ## 手元で動かす
 

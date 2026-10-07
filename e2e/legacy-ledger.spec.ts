@@ -45,6 +45,8 @@ test("offers the old Prismtone handle during onboarding and keeps the migration 
   await expect(guide).toContainText("移行期限はありません");
   await guide.getByRole("button", { name: "Prismtone の ID を使う" }).click();
   await expect(page.getByTestId("welcome-handle")).toHaveValue(oldHandle);
+  await page.getByLabel("15歳以上です").check();
+  await page.getByLabel("利用規約とプライバシーポリシーを読み、同意します").check();
   await page.getByRole("button", { name: "設定を完了" }).click();
   await page.waitForURL("/");
   await expect(page.getByTestId("legacy-migration-guide")).toBeVisible();
@@ -72,7 +74,11 @@ test("keeps an unrelated new user out of the reserved handle and does not show a
     const res = await fetch("/api/me/onboarding", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ handle, name: "Test" }),
+      body: JSON.stringify({
+        handle,
+        name: "Test",
+        consent: { termsVersion: "1.0", privacyVersion: "1.0", ageConfirmed: true },
+      }),
     });
     return res.status;
   }, oldHandle);

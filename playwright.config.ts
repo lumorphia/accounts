@@ -58,7 +58,8 @@ export default defineConfig({
       // DB の用意 → ビルド → 本番と同じ起動 (NODE_ENV=test)
       command:
         "node e2e/prepare-db.ts && pnpm --filter @lumorphia-accounts/app build && pnpm --filter @lumorphia-accounts/app exec node --import ../../e2e/oidc-network.ts server/index.ts",
-      url: `https://127.0.0.1:${PORT}/api/health`,
+      // worker は E2E の各テストが操作する。web の起動待ちは本人 API で見る。
+      url: `https://127.0.0.1:${PORT}/api/me`,
       ignoreHTTPSErrors: true,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,

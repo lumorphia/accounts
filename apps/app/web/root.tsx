@@ -37,6 +37,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </head>
       <body className="min-h-dvh bg-surface text-ink antialiased">
         {children}
+        <footer className="mx-auto flex max-w-3xl flex-wrap justify-center gap-5 p-6 text-sm text-ink-muted">
+          <a href="/terms" className="underline">
+            利用規約
+          </a>
+          <a href="/privacy" className="underline">
+            プライバシーポリシー
+          </a>
+          <a href="https://forms.gle/cn7FLf8W8gqehL977" className="underline">
+            お問い合わせ
+          </a>
+        </footer>
         <ScrollRestoration />
         <Scripts />
       </body>

@@ -15,4 +15,6 @@
 
 | [0009](0009-legacy-ledger-and-handle-reservations.md) | 旧台帳の取り込み・handle の本人用予約・移行完了を原子的に扱う |
 
+| [0010](0010-production-and-legal-consent.md) | 本番の分離、規約の同意と worker の監視 |
+
 本文中の「prismtone ADR-NNNN」は lumorphia/prismtone の ADR を指す。全体の計画は [plan.md](../plan.md)。

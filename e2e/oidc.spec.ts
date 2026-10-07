@@ -223,6 +223,8 @@ test.describe("OIDC browser authorization", () => {
           await page.waitForURL((url) => url.pathname === "/welcome");
           await waitForHydration(page);
           await page.getByTestId("welcome-handle").fill(handle);
+          await page.getByLabel("15歳以上です").check();
+          await page.getByLabel("利用規約とプライバシーポリシーを読み、同意します").check();
           await page.getByRole("button", { name: "設定を完了" }).click();
         }
       }

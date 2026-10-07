@@ -3,6 +3,7 @@ import type { BetterAuthPlugin } from "better-auth";
 import { APIError, createAuthEndpoint } from "better-auth/api";
 import { setSessionCookie } from "better-auth/cookies";
 import type { Database } from "@lumorphia-accounts/db";
+import { TERMS_VERSION, PRIVACY_VERSION } from "@lumorphia-accounts/core/domain/legal-consent";
 import { completeOnboarding, validateHandle } from "@lumorphia-accounts/core";
 
 const handleInput = z.string().min(3).max(20);
@@ -46,7 +47,15 @@ export function devLogin({ db }: { db: Database }) {
             await ctx.context.internalAdapter.linkAccount({ ...accountKey, userId: user.id });
             if (onboarded) {
               try {
-                await completeOnboarding(db, user.id, { handle, name: ctx.body.name ?? handle });
+                await completeOnboarding(db, user.id, {
+                  handle,
+                  name: ctx.body.name ?? handle,
+                  consent: {
+                    termsVersion: TERMS_VERSION,
+                    privacyVersion: PRIVACY_VERSION,
+                    ageConfirmed: true,
+                  },
+                });
               } catch {
                 throw APIError.from("CONFLICT", {
                   code: "handle_taken",

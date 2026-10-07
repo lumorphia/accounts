@@ -5,6 +5,7 @@ import { startAccountWorker } from "@lumorphia-accounts/core/jobs";
 import { createLogger } from "@lumorphia/ops/logger";
 import { createAuth } from "./auth/auth.ts";
 import { loadEnv } from "./env.ts";
+import { startWorkerHeartbeat } from "./worker-health.ts";
 import { handleShutdownSignals } from "./graceful-shutdown.ts";
 
 export async function createAccountWorker(
@@ -16,6 +17,8 @@ export async function createAccountWorker(
   const database = createDatabase(env.DATABASE_URL, {
     onIdleError: (err) => log.error({ err }, "account database error"),
   });
+  let worker: Awaited<ReturnType<typeof startAccountWorker>> | undefined;
+  let stopHeartbeat: (() => Promise<void>) | undefined;
   try {
     const auth = createAuth({ db: database.db, env });
     const storage =
@@ -27,7 +30,7 @@ export async function createAccountWorker(
             source.STORAGE_DRIVER ?? (env.NODE_ENV === "production" ? "s3" : "memory"),
         }),
       );
-    const worker = await startAccountWorker({
+    worker = await startAccountWorker({
       connectionString: env.DATABASE_URL,
       enabled: env.FEATURE_ACCOUNT_LIFECYCLE,
       log,
@@ -56,18 +59,30 @@ export async function createAccountWorker(
           ).token,
       },
     });
+    stopHeartbeat = await startWorkerHeartbeat(
+      database.db,
+      "accounts",
+      env.FEATURE_ACCOUNT_LIFECYCLE,
+      () => log.error("worker heartbeat failed"),
+    );
     log.info({ enabled: env.FEATURE_ACCOUNT_LIFECYCLE }, "account worker started");
     return {
       log,
       async close() {
         try {
-          await worker.stop();
+          try {
+            await worker?.stop();
+          } finally {
+            await stopHeartbeat?.();
+          }
         } finally {
           await database.close();
         }
       },
     };
   } catch (error) {
+    await worker?.stop().catch(() => log.error("worker startup cleanup failed"));
+    await stopHeartbeat?.().catch(() => log.error("worker heartbeat cleanup failed"));
     await database.close();
     throw error;
   }

@@ -88,7 +88,11 @@ describe.skipIf(!databaseUrl)("me routes (PostgreSQL)", () => {
       method: "POST",
       url: "/api/me/onboarding",
       headers: { ...headers, cookie: pendingCookie },
-      payload: { handle: `joined_${stamp}`, name: "New Member" },
+      payload: {
+        handle: `joined_${stamp}`,
+        name: "New Member",
+        consent: { termsVersion: "1.0", privacyVersion: "1.0", ageConfirmed: true },
+      },
     });
     expect(onboard.statusCode, onboard.body).toBe(200);
     expect(onboard.json().profile).toMatchObject({ name: "New Member", handle: `joined_${stamp}` });
@@ -98,7 +102,11 @@ describe.skipIf(!databaseUrl)("me routes (PostgreSQL)", () => {
           method: "POST",
           url: "/api/me/onboarding",
           headers: { ...headers, cookie: pendingCookie },
-          payload: { handle: `again_${stamp}`, name: "Again" },
+          payload: {
+            handle: `again_${stamp}`,
+            name: "Again",
+            consent: { termsVersion: "1.0", privacyVersion: "1.0", ageConfirmed: true },
+          },
         })
       ).statusCode,
     ).toBe(409);
