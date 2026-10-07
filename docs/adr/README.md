@@ -9,4 +9,6 @@
 | [0005](0005-lodestone-character-source.md)    | Lodestone のキャラクター取得を accounts に置く                     |
 | [0006](0006-character-ownership-and-jobs.md)  | キャラクターの所有と再同期の要求を DB で確定する                   |
 
+| [0007](0007-character-api-and-shared-pacing.md) | キャラクター API の権限と Lodestone の取得順を共有する |
+
 本文中の「prismtone ADR-NNNN」は lumorphia/prismtone の ADR を指す。全体の計画は [plan.md](../plan.md)。

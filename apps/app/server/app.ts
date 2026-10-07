@@ -14,6 +14,8 @@ import { dbPlugin } from "./plugins/db.ts";
 import { storagePlugin } from "./plugins/storage.ts";
 import type { ObjectStorage } from "@lumorphia/storage";
 import { authPlugin, type AuthPluginOptions } from "./plugins/auth.ts";
+import { characterPlugin, type CharacterPluginOptions } from "./plugins/characters.ts";
+import { characterRoutes } from "./routes/characters.ts";
 import { meRoutes } from "./routes/me.ts";
 import { securityPlugin } from "./plugins/security.ts";
 import { errorsPlugin } from "./plugins/errors.ts";
@@ -21,14 +23,15 @@ import { healthRoutes } from "./routes/health.ts";
 import { devTlsOptions } from "./tls.ts";
 import { captureServerException, type CaptureException } from "./sentry.ts";
 
-export type BuildAppOptions = AuthPluginOptions & {
-  storage?: ObjectStorage;
-  env?: Env;
-  /** テストで DB をつながずに組み立てる。DB を使うと失敗する */
-  skipDb?: boolean;
-  /** テスト用: 未知の 500 エラーの外部通知を差し替える */
-  captureException?: CaptureException;
-};
+export type BuildAppOptions = AuthPluginOptions &
+  CharacterPluginOptions & {
+    storage?: ObjectStorage;
+    env?: Env;
+    /** テストで DB をつながずに組み立てる。DB を使うと失敗する */
+    skipDb?: boolean;
+    /** テスト用: 未知の 500 エラーの外部通知を差し替える */
+    captureException?: CaptureException;
+  };
 
 /**
  * Fastify インスタンスを組み立てる。listen はしない。
@@ -77,6 +80,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
       ...(opts.miauthFetch ? { miauthFetch: opts.miauthFetch } : {}),
       ...(opts.mastodonFetch ? { mastodonFetch: opts.mastodonFetch } : {}),
     });
+  if (!opts.skipDb) await app.register(characterPlugin, opts);
   await app.register(underPressure, {
     maxEventLoopDelay: 1000,
     maxHeapUsedBytes: 1_500_000_000,
@@ -97,7 +101,10 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
         allowList: () => rateLimitDisabled,
       });
       await api.register(healthRoutes);
-      if (!opts.skipDb) await api.register(meRoutes);
+      if (!opts.skipDb) {
+        await api.register(meRoutes);
+        await api.register(characterRoutes);
+      }
       if (!opts.skipDb && env.NODE_ENV !== "production") {
         api.get("/media/*", { schema: { hide: true } }, async (req, reply) => {
           const key = (req.params as { "*": string })["*"];

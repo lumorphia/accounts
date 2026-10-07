@@ -1,11 +1,18 @@
-import { oauthProvider } from "@better-auth/oauth-provider";
+import { getOAuthProviderApi, oauthProvider } from "@better-auth/oauth-provider";
 import type { BetterAuthPlugin } from "better-auth";
 import { jwt } from "better-auth/plugins/jwt";
-import { APIError } from "better-auth/api";
+import { z } from "zod";
+import { APIError, createAuthEndpoint } from "better-auth/api";
 import { eq, schema, type Database } from "@lumorphia-accounts/db";
 
 export const OIDC_CLAIM_NAMESPACE = "https://lumorphia.com/";
-export const OIDC_SCOPES = ["openid", "profile", "email", "lumorphia:identities"];
+export const OIDC_SCOPES = [
+  "openid",
+  "profile",
+  "email",
+  "lumorphia:identities",
+  "lumorphia:characters",
+];
 
 /** claim は最新の利用者状態と連携から作る。台帳の legacy_pending は A1.5 で埋める。 */
 export async function lumorphiaClaims(
@@ -67,7 +74,22 @@ export function oidcPlugins(db: Database) {
         NonNullable<BetterAuthPlugin["endpoints"]>[string];
     };
   };
+  const access = {
+    id: "character-access",
+    endpoints: {
+      // パスを持たないサーバー内専用の呼び出し。HTTP の auth catch-all には公開しない。
+      characterAccess: createAuthEndpoint(
+        {
+          method: "POST",
+          body: z.object({ token: z.string().min(1).max(8192) }),
+        },
+        async (ctx) =>
+          getOAuthProviderApi(ctx, provider.options).requireActiveAccessToken(ctx.body.token),
+      ),
+    },
+  } satisfies BetterAuthPlugin;
   return [
+    access,
     jwt({
       jwks: {
         keyPairConfig: { alg: "EdDSA", crv: "Ed25519" },

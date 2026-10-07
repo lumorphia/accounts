@@ -9,11 +9,13 @@ export type Database = PgDatabase<NodePgQueryResultHKT, typeof schema>;
 export function createDatabase(
   connectionString: string,
   options: {
+    /** pool の接続上限。既定は 10。取得制御は専用の 1 接続を使う */
+    maxConnections?: number;
     /** idle 接続が切れたときの記録先。既定は console.error */
     onIdleError?: (error: Error) => void;
   } = {},
 ) {
-  const pool = new pg.Pool({ connectionString, max: 10 });
+  const pool = new pg.Pool({ connectionString, max: options.maxConnections ?? 10 });
   // DB の再起動やフェイルオーバーで idle 接続がサーバー側から切られると、pg は Pool に 'error' を出す。
   // listener が無いと Node が unhandled として process を落とすので、記録だけして次の取得で新しい接続を張らせる
   const onIdleError =
