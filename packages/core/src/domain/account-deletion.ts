@@ -211,13 +211,20 @@ export async function deleteLumorphiaAccount(
     for (const row of rows) await emit(tx, deleted, row, "account", now);
   });
 }
-export async function restoreAccountForLogin(
-  deps: AccountLifecycleDeps,
-  userId: string,
-): Promise<boolean> {
-  return deps.db.transaction(async (tx) => {
+/** セッション作成の前に呼ぶ。期限内の退会済みは入れるが、状態は変えない (復旧は本人の操作で行う)。 */
+export async function assertLoginAllowed(deps: AccountLifecycleDeps, userId: string) {
+  const user = await deps.db.query.users.findFirst({
+    columns: { status: true, deletedAt: true },
+    where: eq(schema.users.id, userId),
+  });
+  if (user?.status !== "deleted") return;
+  if (!user.deletedAt || deadline(user.deletedAt) <= time(deps))
+    fail("forbidden", "recovery_expired");
+}
+export async function restoreLumorphiaAccount(deps: AccountLifecycleDeps, userId: string) {
+  await deps.db.transaction(async (tx) => {
     const user = await lockOwner(tx, userId);
-    if (user.status !== "deleted") return false;
+    if (user.status !== "deleted") fail("conflict", "account_not_deleted");
     const now = time(deps);
     if (!user.deletedAt || deadline(user.deletedAt) <= now) fail("forbidden", "recovery_expired");
     const restored = { ...user, status: "active" as const, deletedAt: null };
@@ -229,8 +236,32 @@ export async function restoreAccountForLogin(
       where: eq(schema.serviceMemberships.userId, userId),
     });
     for (const row of rows) await emit(tx, restored, row, "account", now);
-    return true;
   });
+}
+/** 認可の前に、本人に復旧を選ばせる必要があるかを返す。値は復旧できる期限。 */
+export async function pendingRecovery(
+  deps: AccountLifecycleDeps,
+  userId: string,
+  service: string | null,
+): Promise<{ account: Date | null; service: Date | null }> {
+  const now = time(deps);
+  const open = (deletedAt: Date | null) =>
+    deletedAt && deadline(deletedAt) > now ? deadline(deletedAt) : null;
+  const user = await deps.db.query.users.findFirst({
+    columns: { status: true, deletedAt: true },
+    where: eq(schema.users.id, userId),
+  });
+  const account = user?.status === "deleted" ? open(user.deletedAt) : null;
+  if (!service || !(SERVICES as readonly string[]).includes(service))
+    return { account, service: null };
+  const row = await deps.db.query.serviceMemberships.findFirst({
+    columns: { deletedAt: true, purgedAt: true },
+    where: and(
+      eq(schema.serviceMemberships.userId, userId),
+      eq(schema.serviceMemberships.service, service),
+    ),
+  });
+  return { account, service: row && !row.purgedAt ? open(row.deletedAt) : null };
 }
 export async function deleteServiceAccount(
   deps: AccountLifecycleDeps,
@@ -276,7 +307,10 @@ export async function restoreServiceAccount(
     await emit(tx, user, { ...row, deletedAt: null }, "service", now);
   });
 }
-/** 認可コードの交換で呼ぶ。期限を過ぎていれば旧データの削除を先に通知してから利用を始める。 */
+/**
+ * 認可コードの交換で呼ぶ。期限内の退会は自動では戻さず拒む (本人が復旧を選ぶ)。
+ * 期限を過ぎていれば旧データの削除を先に通知してから、新しく利用を始める。
+ */
 export async function visitService(deps: AccountLifecycleDeps, userId: string, service: string) {
   checkService(service);
   await deps.db.transaction(async (tx) => {
@@ -285,6 +319,8 @@ export async function visitService(deps: AccountLifecycleDeps, userId: string, s
     await tx.insert(schema.serviceMemberships).values({ userId, service }).onConflictDoNothing();
     let row = await membership(tx, userId, service);
     const now = time(deps);
+    if (row.deletedAt && !row.purgedAt && deadline(row.deletedAt) > now)
+      fail("forbidden", "service_deleted");
     if (row.deletedAt && deadline(row.deletedAt) <= now && !row.purgedAt) {
       row = await emit(tx, user, row, "service", now, true);
       row = { ...row, purgedAt: now };

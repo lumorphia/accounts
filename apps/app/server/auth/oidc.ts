@@ -2,8 +2,18 @@ import { getOAuthProviderApi, oauthProvider } from "@better-auth/oauth-provider"
 import type { BetterAuthPlugin } from "better-auth";
 import { jwt, signJWT } from "better-auth/plugins/jwt";
 import { z } from "zod";
-import { APIError, createAuthEndpoint } from "better-auth/api";
-import { legacyPendingServices, visitService } from "@lumorphia-accounts/core";
+import {
+  APIError,
+  createAuthEndpoint,
+  createAuthMiddleware,
+  getSessionFromCtx,
+} from "better-auth/api";
+import {
+  DomainError,
+  legacyPendingServices,
+  pendingRecovery,
+  visitService,
+} from "@lumorphia-accounts/core";
 import { eq, schema, type Database } from "@lumorphia-accounts/db";
 
 export const OIDC_CLAIM_NAMESPACE = "https://lumorphia.com/";
@@ -47,6 +57,51 @@ export async function lumorphiaClaims(
   };
 }
 
+async function serviceOfClient(db: Database, clientId: unknown): Promise<string | null> {
+  if (typeof clientId !== "string") return null;
+  const client = await db.query.oauthClients.findFirst({
+    columns: { metadata: true },
+    where: eq(schema.oauthClients.clientId, clientId),
+  });
+  const service = (client?.metadata as Record<string, unknown> | null)?.lumorphia_service;
+  return typeof service === "string" ? service : null;
+}
+
+/**
+ * 退会中 (全体またはそのサービス) の利用者は、認可の前にダッシュボードへ寄せて復旧を選ばせる。
+ * ログインだけでは復旧しない (ADR-0011)。復旧後は next の認可要求に戻る。
+ * prompt=none は画面を出せないので通し、トークン発行の側で拒む。
+ */
+export function recoveryGate(db: Database) {
+  return {
+    id: "recovery-gate",
+    hooks: {
+      before: [
+        {
+          matcher: (ctx) => ctx.path === "/oauth2/authorize",
+          handler: createAuthMiddleware(async (ctx) => {
+            const query = (ctx.query ?? {}) as Record<string, unknown>;
+            if (typeof query.prompt === "string" && query.prompt.split(" ").includes("none"))
+              return;
+            const session = await getSessionFromCtx(ctx);
+            if (!session) return;
+            const service = await serviceOfClient(db, query.client_id);
+            const pending = await pendingRecovery({ db }, session.user.id, service);
+            if (!pending.account && !pending.service) return;
+            const requested = ctx.request ? new URL(ctx.request.url) : null;
+            const next = requested
+              ? `${requested.pathname}${requested.search}`
+              : `/api/auth/oauth2/authorize?${new URLSearchParams(query as Record<string, string>)}`;
+            const dashboard = new URLSearchParams({ next });
+            if (!pending.account && pending.service && service) dashboard.set("service", service);
+            throw ctx.redirect(`/?${dashboard}`);
+          }),
+        },
+      ],
+    },
+  } satisfies BetterAuthPlugin;
+}
+
 export function oidcPlugins(db: Database) {
   const provider = oauthProvider({
     loginPage: "/login",
@@ -70,7 +125,11 @@ export function oidcPlugins(db: Database) {
     customIdTokenClaims: async ({ user, scopes, metadata }) => {
       const claims = await lumorphiaClaims(db, user.id, scopes);
       if (typeof metadata?.lumorphia_service === "string")
-        await visitService({ db }, user.id, metadata.lumorphia_service);
+        await visitService({ db }, user.id, metadata.lumorphia_service).catch((error: unknown) => {
+          if (error instanceof DomainError)
+            throw APIError.from("FORBIDDEN", { code: "access_denied", message: error.message });
+          throw error;
+        });
       return claims;
     },
     customUserInfoClaims: ({ user, scopes }) => lumorphiaClaims(db, user.id, scopes),
@@ -137,6 +196,7 @@ export function oidcPlugins(db: Database) {
     },
   } satisfies BetterAuthPlugin;
   return [
+    recoveryGate(db),
     access,
     keys,
     // 1.7.7 の OpenAPI metadata の型は exactOptionalPropertyTypes と合わない。

@@ -4,7 +4,9 @@ import { createDatabase, eq, schema } from "@lumorphia-accounts/db";
 import {
   deleteLumorphiaAccount,
   deleteServiceAccount,
-  restoreAccountForLogin,
+  assertLoginAllowed,
+  pendingRecovery,
+  restoreLumorphiaAccount,
   restoreServiceAccount,
   visitService,
   purgeAccounts,
@@ -112,12 +114,26 @@ describe.skipIf(!databaseUrl)("account lifecycle (PostgreSQL)", () => {
       code: "forbidden",
     });
   });
-  it("restores a global account strictly before the deadline without restoring images", async () => {
+  it("keeps a deleted account deleted when its owner logs in before the deadline", async () => {
     const user = await setup();
     await deleteLumorphiaAccount(deps(), user.id, user.handle);
-    expect(
-      await restoreAccountForLogin(deps(new Date(now.getTime() + 30 * day - 1)), user.id),
-    ).toBe(true);
+    const before = await events(user.id);
+    await assertLoginAllowed(deps(new Date(now.getTime() + 30 * day - 1)), user.id);
+    expect((await userRow(user.id))?.status).toBe("deleted");
+    expect(await events(user.id)).toHaveLength(before.length);
+  });
+  it("rejects login at the recovery deadline", async () => {
+    const user = await setup();
+    await deleteLumorphiaAccount(deps(), user.id, user.handle);
+    await expect(
+      assertLoginAllowed(deps(new Date(now.getTime() + 30 * day)), user.id),
+    ).rejects.toMatchObject({ code: "forbidden", message: "recovery_expired" });
+    expect((await userRow(user.id))?.status).toBe("deleted");
+  });
+  it("restores a global account on request strictly before the deadline without restoring images", async () => {
+    const user = await setup();
+    await deleteLumorphiaAccount(deps(), user.id, user.handle);
+    await restoreLumorphiaAccount(deps(new Date(now.getTime() + 30 * day - 1)), user.id);
     expect(await userRow(user.id)).toMatchObject({
       status: "active",
       deletedAt: null,
@@ -125,13 +141,20 @@ describe.skipIf(!databaseUrl)("account lifecycle (PostgreSQL)", () => {
     });
     expect((await events(user.id)).filter((e) => e.state === "active").length).toBeGreaterThan(0);
   });
-  it("rejects login at the recovery deadline", async () => {
+  it("refuses a restore request at the recovery deadline", async () => {
     const user = await setup();
     await deleteLumorphiaAccount(deps(), user.id, user.handle);
     await expect(
-      restoreAccountForLogin(deps(new Date(now.getTime() + 30 * day)), user.id),
+      restoreLumorphiaAccount(deps(new Date(now.getTime() + 30 * day)), user.id),
     ).rejects.toMatchObject({ code: "forbidden", message: "recovery_expired" });
     expect((await userRow(user.id))?.status).toBe("deleted");
+  });
+  it("refuses a restore request for an account that is not deleted", async () => {
+    const user = await setup();
+    await expect(restoreLumorphiaAccount(deps(), user.id)).rejects.toMatchObject({
+      code: "conflict",
+      message: "account_not_deleted",
+    });
   });
   it("does not issue duplicate events for simultaneous global deletion", async () => {
     const user = await setup();
@@ -143,17 +166,14 @@ describe.skipIf(!databaseUrl)("account lifecycle (PostgreSQL)", () => {
     const rows = await events(user.id);
     expect(rows.every((e) => e.revision === 1)).toBe(true);
   });
-  it("restores exactly once under concurrent logins", async () => {
+  it("restores exactly once under concurrent requests", async () => {
     const user = await setup();
     await deleteLumorphiaAccount(deps(), user.id, user.handle);
-    expect(
-      (
-        await Promise.all([
-          restoreAccountForLogin(deps(), user.id),
-          restoreAccountForLogin(deps(), user.id),
-        ])
-      ).filter(Boolean),
-    ).toHaveLength(1);
+    const outcomes = await Promise.allSettled([
+      restoreLumorphiaAccount(deps(), user.id),
+      restoreLumorphiaAccount(deps(), user.id),
+    ]);
+    expect(outcomes.filter((r) => r.status === "fulfilled")).toHaveLength(1);
     expect((await events(user.id)).every((e) => e.revision <= 2)).toBe(true);
   });
   it("deletes only one service without altering global sessions or characters", async () => {
@@ -170,19 +190,54 @@ describe.skipIf(!databaseUrl)("account lifecycle (PostgreSQL)", () => {
       (await events(user.id)).every((e) => e.service === "prismtone" && e.scope === "service"),
     ).toBe(true);
   });
-  it("restores a service on its next login within thirty days", async () => {
+  it("refuses a service login within thirty days instead of restoring it", async () => {
     const user = await setup();
     await deleteServiceAccount(deps(), user.id, "prismtone", user.handle);
-    await visitService(deps(), user.id, "prismtone");
+    const before = await events(user.id);
+    await expect(visitService(deps(), user.id, "prismtone")).rejects.toMatchObject({
+      code: "forbidden",
+      message: "service_deleted",
+    });
     expect(
       (await listServices(deps(), user.id)).find((s) => s.service === "prismtone")?.state,
-    ).toBe("active");
+    ).toBe("deleted");
+    expect(await events(user.id)).toHaveLength(before.length);
+  });
+  it("reports nothing to recover for an active account and service", async () => {
+    const user = await setup();
+    expect(await pendingRecovery(deps(), user.id, "prismtone")).toEqual({
+      account: null,
+      service: null,
+    });
+  });
+  it("reports the recovery deadline of a deleted account", async () => {
+    const user = await setup();
+    await deleteLumorphiaAccount(deps(), user.id, user.handle);
+    expect(await pendingRecovery(deps(), user.id, null)).toEqual({
+      account: new Date(now.getTime() + 30 * day),
+      service: null,
+    });
+  });
+  it("reports the recovery deadline of a deleted service", async () => {
+    const user = await setup();
+    await deleteServiceAccount(deps(), user.id, "prismtone", user.handle);
+    expect(await pendingRecovery(deps(), user.id, "prismtone")).toEqual({
+      account: null,
+      service: new Date(now.getTime() + 30 * day),
+    });
+  });
+  it("reports nothing to recover once a deleted service has expired", async () => {
+    const user = await setup();
+    await deleteServiceAccount(deps(), user.id, "prismtone", user.handle);
+    expect(
+      await pendingRecovery(deps(new Date(now.getTime() + 30 * day)), user.id, "prismtone"),
+    ).toEqual({ account: null, service: null });
   });
   it("retains independent service deletion after global recovery", async () => {
     const user = await setup();
     await deleteServiceAccount(deps(), user.id, "prismtone", user.handle);
     await deleteLumorphiaAccount(deps(), user.id, user.handle);
-    await restoreAccountForLogin(deps(), user.id);
+    await restoreLumorphiaAccount(deps(), user.id);
     const services = await listServices(deps(), user.id);
     expect(services.find((s) => s.service === "prismtone")?.state).toBe("deleted");
     expect(services.find((s) => s.service === "scenote")?.state).toBe("active");

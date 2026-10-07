@@ -1,29 +1,43 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router";
 import { LegacyMigrationGuide } from "../components/legacy-migration-guide.tsx";
+import { AccountRecovery, ServiceRecovery } from "../components/recovery.tsx";
+import { loginNext } from "../auth/login-next.ts";
 import type { Route } from "./+types/home";
 
 export function meta(_: Route.MetaArgs) {
   return [{ title: "Lumorphia アカウント" }];
 }
 
+type Me = { status: string; recoverUntil: string | null };
+type Session =
+  | { kind: "loading" | "guest" | "error" }
+  | { kind: "authenticated" }
+  | { kind: "deleted"; recoverUntil: string };
+
 export default function Home() {
-  const [session, setSession] = useState<"loading" | "guest" | "authenticated" | "error">(
-    "loading",
-  );
+  const [params] = useSearchParams();
+  const [session, setSession] = useState<Session>({ kind: "loading" });
+  const next = loginNext(params);
+  const service = params.get("service");
   useEffect(() => {
     void fetch("/api/me")
       .then((res) => {
         if (!res.ok) throw new Error("ログイン状態を確認できませんでした");
         return res.json();
       })
-      .then((data: { user: { status: string } | null }) => {
+      .then((data: { user: Me | null }) => {
         if (data.user?.status === "pending") {
           window.location.assign("/welcome");
           return;
         }
-        setSession(data.user ? "authenticated" : "guest");
+        if (data.user?.status === "deleted" && data.user.recoverUntil) {
+          setSession({ kind: "deleted", recoverUntil: data.user.recoverUntil });
+          return;
+        }
+        setSession({ kind: data.user ? "authenticated" : "guest" });
       })
-      .catch(() => setSession("error"));
+      .catch(() => setSession({ kind: "error" }));
   }, []);
   return (
     <main className="mx-auto max-w-2xl p-8">
@@ -31,20 +45,34 @@ export default function Home() {
       <p className="mt-2 text-ink-muted">
         Lumorphia のサービス (Prismtone、Scenote) で使うアカウントです。準備中です。
       </p>
+      {session.kind === "deleted" ? (
+        <AccountRecovery
+          recoverUntil={session.recoverUntil}
+          next={next}
+          onRestored={() => {
+            // 全体を戻したあとも、そのサービスだけの退会が残っていればここでもう一度選ばせる
+            if (service) setSession({ kind: "authenticated" });
+            else window.location.assign(next);
+          }}
+        />
+      ) : null}
+      {session.kind === "authenticated" && service ? (
+        <ServiceRecovery service={service} next={next} />
+      ) : null}
       <div className="mt-6">
         <LegacyMigrationGuide />
       </div>
-      {session === "guest" ? (
+      {session.kind === "guest" ? (
         <a href="/login" className="mt-6 inline-block rounded bg-accent px-4 py-2 text-accent-ink">
           ログイン
         </a>
       ) : null}
-      {session === "authenticated" ? (
+      {session.kind === "authenticated" ? (
         <a href="/settings" className="mt-6 inline-block text-accent underline">
           設定
         </a>
       ) : null}
-      {session === "error" ? (
+      {session.kind === "error" ? (
         <p role="alert" className="mt-6 text-ink-muted">
           ログイン状態を確認できませんでした。ページを再読み込みしてください。
         </p>

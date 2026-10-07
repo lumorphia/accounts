@@ -68,7 +68,7 @@ describe.skipIf(!url)("account lifecycle HTTP (PostgreSQL)", () => {
       ).statusCode,
     ).toBe(403);
   });
-  it("invalidates every session and recovers on a new authenticated login", async () => {
+  it("invalidates every session and keeps the account deleted on a new login", async () => {
     const user = await login();
     const second = await login(user.handle);
     const deleted = await app.inject({
@@ -83,17 +83,66 @@ describe.skipIf(!url)("account lifecycle HTTP (PostgreSQL)", () => {
         await app.inject({ method: "GET", url: "/api/me", headers: { cookie: second.cookie } })
       ).json().user,
     ).toBeNull();
-    expect(
-      (await app.db.query.users.findFirst({ where: eq(schema.users.id, user.userId) }))?.status,
-    ).toBe("deleted");
-    const restored = await login(user.handle);
-    expect(restored.res.statusCode, restored.res.body).toBe(200);
-    expect(restored.userId).toBe(user.userId);
+    const again = await login(user.handle);
+    expect(again.res.statusCode, again.res.body).toBe(200);
+    expect(again.userId).toBe(user.userId);
+    const me = (
+      await app.inject({ method: "GET", url: "/api/me", headers: { cookie: again.cookie } })
+    ).json().user;
+    expect(me.status).toBe("deleted");
+    expect(new Date(me.recoverUntil).getTime()).toBeGreaterThan(Date.now());
     expect(
       (
-        await app.inject({ method: "GET", url: "/api/me", headers: { cookie: restored.cookie } })
-      ).json().user.status,
-    ).toBe("active");
+        await app.inject({
+          method: "GET",
+          url: "/api/me/lifecycle",
+          headers: { cookie: again.cookie },
+        })
+      ).statusCode,
+    ).toBe(401);
+  });
+  it("restores a deleted account only when its owner asks", async () => {
+    const user = await login();
+    await app.inject({
+      method: "POST",
+      url: "/api/me/deletion",
+      headers: { ...headers, cookie: user.cookie },
+      payload: { confirm: user.handle },
+    });
+    const again = await login(user.handle);
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url: "/api/me/restore",
+          headers: { cookie: again.cookie },
+        })
+      ).statusCode,
+    ).toBe(403);
+    const restored = await app.inject({
+      method: "POST",
+      url: "/api/me/restore",
+      headers: { ...headers, cookie: again.cookie },
+    });
+    expect(restored.statusCode, restored.body).toBe(200);
+    const me = (
+      await app.inject({ method: "GET", url: "/api/me", headers: { cookie: again.cookie } })
+    ).json().user;
+    expect(me).toMatchObject({ status: "active", recoverUntil: null });
+  });
+  it("refuses a restore request for an active account", async () => {
+    const user = await login();
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/me/restore",
+      headers: { ...headers, cookie: user.cookie },
+    });
+    expect(res.statusCode).toBe(409);
+  });
+  it("requires a session to restore", async () => {
+    expect((await app.inject({ method: "POST", url: "/api/me/restore", headers })).statusCode).toBe(
+      401,
+    );
   });
   it("refuses a new session after the recovery deadline", async () => {
     const user = await login();

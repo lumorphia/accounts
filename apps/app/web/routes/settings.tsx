@@ -69,6 +69,11 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
       window.location.assign("/welcome?next=%2Fsettings");
       return;
     }
+    if (me.user.status === "deleted") {
+      // 退会中は設定を開かず、ダッシュボードで復旧するかを選ばせる
+      window.location.assign("/");
+      return;
+    }
     const linked = await responseBody<{ accounts: Account[] }>(
       await fetch("/api/me/accounts"),
       "連携を読み込めませんでした",

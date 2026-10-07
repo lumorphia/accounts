@@ -137,6 +137,87 @@ describe.skipIf(!databaseUrl)("OIDC provider (PostgreSQL)", () => {
     }
   });
 
+  async function setServiceDeletedAt(deletedAt: Date | null) {
+    await app.db
+      .insert(schema.serviceMemberships)
+      .values({ userId, service: "prismtone", deletedAt })
+      .onConflictDoUpdate({
+        target: [schema.serviceMemberships.userId, schema.serviceMemberships.service],
+        set: { deletedAt, purgedAt: null },
+      });
+  }
+  async function resume(next: string) {
+    return app.inject({
+      method: "GET",
+      url: next,
+      headers: { ...headers, cookie, "sec-fetch-mode": "navigate", "sec-fetch-dest": "document" },
+    });
+  }
+
+  it("sends a deleted account to the dashboard to choose recovery before authorizing", async () => {
+    await app.db
+      .update(schema.users)
+      .set({ status: "deleted", deletedAt: new Date() })
+      .where(eq(schema.users.id, userId));
+    try {
+      const { res, verifier } = await authorize();
+      expect(res.statusCode, res.body).toBe(302);
+      const dashboard = new URL(String(res.headers.location), origin);
+      expect(dashboard.origin).toBe(origin);
+      expect(dashboard.pathname).toBe("/");
+      expect(dashboard.searchParams.get("service")).toBeNull();
+      const next = dashboard.searchParams.get("next")!;
+      expect(next.startsWith("/api/auth/oauth2/authorize?")).toBe(true);
+      await app.db
+        .update(schema.users)
+        .set({ status: "active", deletedAt: null })
+        .where(eq(schema.users.id, userId));
+      const resumed = await resume(next);
+      expect(resumed.statusCode, resumed.body).toBe(302);
+      const callback = new URL(String(resumed.headers.location));
+      expect(callback.searchParams.get("state")).toBe("test-state");
+      expect((await token(callback.searchParams.get("code")!, verifier)).statusCode).toBe(200);
+    } finally {
+      await app.db
+        .update(schema.users)
+        .set({ status: "active", deletedAt: null })
+        .where(eq(schema.users.id, userId));
+    }
+  });
+
+  it("sends a deleted service membership to the dashboard instead of restoring it on login", async () => {
+    await setServiceDeletedAt(new Date());
+    try {
+      const { res } = await authorize();
+      expect(res.statusCode, res.body).toBe(302);
+      const dashboard = new URL(String(res.headers.location), origin);
+      expect(dashboard.pathname).toBe("/");
+      expect(dashboard.searchParams.get("service")).toBe("prismtone");
+      expect(dashboard.searchParams.get("next")?.startsWith("/api/auth/oauth2/authorize?")).toBe(
+        true,
+      );
+      const membership = await app.db.query.serviceMemberships.findFirst({
+        where: eq(schema.serviceMemberships.userId, userId),
+      });
+      expect(membership?.deletedAt).not.toBeNull();
+    } finally {
+      await setServiceDeletedAt(null);
+    }
+  });
+
+  it("refuses to issue tokens for a service deleted after the code was granted", async () => {
+    const { res, verifier } = await authorize();
+    const code = new URL(String(res.headers.location)).searchParams.get("code")!;
+    await setServiceDeletedAt(new Date());
+    try {
+      const exchanged = await token(code, verifier);
+      expect(exchanged.statusCode).not.toBe(200);
+      expect(exchanged.json().id_token).toBeUndefined();
+    } finally {
+      await setServiceDeletedAt(null);
+    }
+  });
+
   it("publishes discovery and public signing keys", async () => {
     const res = await app.inject({
       method: "GET",

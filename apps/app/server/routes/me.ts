@@ -9,6 +9,7 @@ import {
   getProfile,
   handleAvailability,
   listLinkedAccounts,
+  pendingRecovery,
   removeUploadedAvatar,
   setUploadedAvatar,
   unlinkAccount,
@@ -28,6 +29,8 @@ const meSchema = z.object({
   role: z.enum(["user", "admin"]),
   status: z.enum(["pending", "active", "suspended", "deleted"]),
   nextHandleChangeAt: z.string().nullable(),
+  /** 退会中だけ値を持つ。この時刻より前なら本人の操作で復旧できる */
+  recoverUntil: z.string().nullable(),
 });
 const profileSchema = z.object({
   handle: z.string(),
@@ -69,23 +72,27 @@ export const meRoutes: FastifyPluginAsyncZod = async (app) => {
       },
       preValidation: [app.optionalAuth],
     },
-    async (req) => ({
-      user: req.user
-        ? {
-            id: req.user.id,
-            name: req.user.name,
-            handle: req.user.handle ?? "",
-            image: req.user.image ?? null,
-            role: req.user.role === "admin" ? ("admin" as const) : ("user" as const),
-            status: req.user.status as "pending" | "active" | "suspended" | "deleted",
-            nextHandleChangeAt: req.user.handleChangedAt
-              ? new Date(
-                  new Date(req.user.handleChangedAt).getTime() + 30 * 86_400_000,
-                ).toISOString()
-              : null,
-          }
-        : null,
-    }),
+    async (req) => {
+      if (!req.user) return { user: null };
+      const recovery =
+        req.user.status === "deleted"
+          ? await pendingRecovery({ db: app.db }, req.user.id, null)
+          : null;
+      return {
+        user: {
+          id: req.user.id,
+          name: req.user.name,
+          handle: req.user.handle ?? "",
+          image: req.user.image ?? null,
+          role: req.user.role === "admin" ? ("admin" as const) : ("user" as const),
+          status: req.user.status as "pending" | "active" | "suspended" | "deleted",
+          nextHandleChangeAt: req.user.handleChangedAt
+            ? new Date(new Date(req.user.handleChangedAt).getTime() + 30 * 86_400_000).toISOString()
+            : null,
+          recoverUntil: recovery?.account?.toISOString() ?? null,
+        },
+      };
+    },
   );
 
   app.get(

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { loginNext } from "./login-next.ts";
+import { isServiceLogin, loginNext } from "./login-next.ts";
 
 describe("loginNext", () => {
   it("resumes the signed authorization query without changing it", () => {
@@ -23,5 +23,15 @@ describe("loginNext", () => {
     ]) {
       expect(loginNext(new URLSearchParams({ next }))).toBe("/");
     }
+  });
+});
+
+describe("isServiceLogin", () => {
+  it("treats a return to the authorization endpoint as a service login in progress", () => {
+    expect(isServiceLogin("/api/auth/oauth2/authorize?client_id=test-client")).toBe(true);
+  });
+  it("does not treat a normal page as a service login", () => {
+    expect(isServiceLogin("/settings")).toBe(false);
+    expect(isServiceLogin("/")).toBe(false);
   });
 });

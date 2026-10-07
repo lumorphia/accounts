@@ -4,6 +4,7 @@ import {
   deleteLumorphiaAccount,
   deleteServiceAccount,
   listServices,
+  restoreLumorphiaAccount,
   restoreServiceAccount,
   SERVICES,
 } from "@lumorphia-accounts/core";
@@ -59,6 +60,21 @@ export const accountLifecycleRoutes: FastifyPluginAsyncZod = async (app) => {
     async (req) => {
       enabled();
       await deleteLumorphiaAccount({ db: app.db }, req.user!.id, req.body.confirm);
+      return { ok: true as const };
+    },
+  );
+  // 退会中の本人だけが呼ぶので requireSession (退会済みを弾く) は使わない。
+  // 既に退会した利用者の復旧は FEATURE_ACCOUNT_LIFECYCLE を無効にしても止めない (ADR-0008)。
+  app.post(
+    "/me/restore",
+    {
+      preValidation: [app.optionalAuth],
+      config: { rateLimit: { max: 5, timeWindow: "1 minute" } },
+      schema: { response: withErrors({ 200: ok }) },
+    },
+    async (req) => {
+      if (!req.user) throw new DomainError("unauthorized", "login required");
+      await restoreLumorphiaAccount({ db: app.db }, req.user.id);
       return { ok: true as const };
     },
   );

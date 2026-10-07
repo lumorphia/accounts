@@ -9,7 +9,7 @@ import { deliverAccountEvents } from "../packages/core/src/jobs/account-lifecycl
 import { expect, test } from "./test.ts";
 import { gotoHydrated } from "./helpers.ts";
 
-test("deletes the global account and recovers its identity on a new login over HTTPS", async ({
+test("deletes the global account and restores it only when the owner asks after logging in", async ({
   page,
 }) => {
   const handle = `dl_${Date.now().toString(36)}`;
@@ -31,9 +31,51 @@ test("deletes the global account and recovers its identity on a new login over H
   await page.getByLabel("開発用ログイン").fill(handle);
   await page.getByTestId("dev-login").getByRole("button", { name: "ログイン" }).click();
   await page.waitForURL("/");
+  const recovery = page.getByTestId("account-recovery");
+  await expect(recovery).toContainText("退会の手続き中です");
+  await expect(recovery.getByTestId("service-login-notice")).toBeHidden();
+  expect(await page.evaluate(async () => (await (await fetch("/api/me")).json()).user.status)).toBe(
+    "deleted",
+  );
+  await recovery.getByRole("button", { name: "復旧する", exact: true }).click();
+  await expect(recovery).toBeHidden();
   const restored = await page.evaluate(async () => (await (await fetch("/api/me")).json()).user);
   expect(restored.id).toBe(before);
   expect(restored.status).toBe("active");
+});
+
+test("asks to restore a deleted service before continuing to it", async ({ page }) => {
+  const handle = `sr_${Date.now().toString(36)}`;
+  await gotoHydrated(page, "/login");
+  await page.getByLabel("開発用ログイン").fill(handle);
+  await page.getByTestId("dev-login").getByRole("button", { name: "ログイン" }).click();
+  await page.waitForURL("/");
+  const userId = await page.evaluate(async () => (await (await fetch("/api/me")).json()).user.id);
+  const database = createDatabase(e2eDatabaseUrl());
+  try {
+    await database.db
+      .insert(schema.serviceMemberships)
+      .values({ userId, service: "scenote", deletedAt: new Date() });
+    await gotoHydrated(
+      page,
+      `/?service=scenote&next=${encodeURIComponent("/api/auth/oauth2/authorize?client_id=test-client")}`,
+    );
+    await expect(
+      page.getByTestId("service-recovery").getByTestId("service-login-notice"),
+    ).toBeVisible();
+    await gotoHydrated(page, "/?service=scenote&next=%2Fsettings");
+    const recovery = page.getByTestId("service-recovery");
+    await expect(recovery).toContainText("Scenote");
+    await expect(recovery.getByTestId("service-login-notice")).toBeHidden();
+    await recovery.getByRole("button", { name: "Scenote を復旧する", exact: true }).click();
+    await page.waitForURL("**/settings");
+    const row = await database.db.query.serviceMemberships.findFirst({
+      where: eq(schema.serviceMemberships.userId, userId),
+    });
+    expect(row?.deletedAt).toBeNull();
+  } finally {
+    await database.close();
+  }
 });
 
 test("deletes and restores one service while keeping the Lumorphia account active", async ({
@@ -174,6 +216,11 @@ test("retries signed deletion delivery over verified TLS before sending restorat
     await page.getByLabel("開発用ログイン").fill(handle);
     await page.getByTestId("dev-login").getByRole("button", { name: "ログイン" }).click();
     await page.waitForURL("/");
+    await page
+      .getByTestId("account-recovery")
+      .getByRole("button", { name: "復旧する", exact: true })
+      .click();
+    await expect(page.getByTestId("account-recovery")).toBeHidden();
     const sign = async (row: typeof schema.accountEvents.$inferSelect) =>
       (
         await app.auth.api.signAccountEvent({

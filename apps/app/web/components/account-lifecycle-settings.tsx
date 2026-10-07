@@ -108,7 +108,7 @@ export function AccountLifecycleSettings({ handle }: { handle: string }) {
           <p className="text-sm text-ink-muted">
             このサービスのデータとセッションを削除します。Lumorphia
             のアカウントとキャラクター、ほかのサービスは残ります。30
-            日以内にこのサービスへ再ログインすると復旧できます。画像は復旧しても戻りません。
+            日以内なら、この画面かサービスへのログイン時に「復旧する」を選ぶと戻せます。画像は復旧しても戻りません。
           </p>
           {settings.services.length === 0 && (
             <p className="text-sm">利用中のサービスはありません。</p>
@@ -160,7 +160,7 @@ export function AccountLifecycleSettings({ handle }: { handle: string }) {
           <h3 className="font-medium">Lumorphia から退会</h3>
           <p className="text-sm text-ink-muted">
             すべてのサービスと Lumorphia のセッションが終了し、画像の削除を始めます。30
-            日以内に同じ連携アカウントで再ログインすると復旧できます。30
+            日以内なら、同じ連携アカウントでログインして「復旧する」を選ぶと戻せます。30
             日後にアカウント、連携、キャラクターと各サービスのデータを削除します。
           </p>
           {!settings.canDelete && <p className="text-sm">管理者アカウントは退会できません。</p>}
