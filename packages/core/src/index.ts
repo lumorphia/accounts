@@ -3,5 +3,6 @@ export * from "./domain/handle.ts";
 export * from "./domain/users.ts";
 export * from "./domain/avatar.ts";
 export * from "./domain/characters.ts";
+export * from "./domain/services.ts";
 export * from "./domain/account-deletion.ts";
 export * from "./domain/legacy-ledger.ts";

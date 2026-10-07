@@ -129,7 +129,7 @@ test("retries signed deletion delivery over verified TLS before sending restorat
     clientId,
     name: "scenote",
     redirectUris: [`https://scenote.lumorphia.test:${port}/callback`],
-    metadata: { lifecycle_uri: endpoint },
+    metadata: { lumorphia_service: "scenote", lifecycle_uri: endpoint },
   });
   const keys = createLocalJWKSet(
     (await app.inject({ method: "GET", url: "/api/auth/jwks" })).json(),

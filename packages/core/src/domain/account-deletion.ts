@@ -10,10 +10,9 @@ import {
   type Database,
 } from "@lumorphia-accounts/db";
 import { DomainError } from "./errors.ts";
+import { clientsOfService, isService, serviceOfClientMetadata, type Service } from "./services.ts";
 
 export const ACCOUNT_RECOVERY_MS = 30 * 86_400_000;
-export const SERVICES = ["prismtone", "scenote", "facetia"] as const;
-export type Service = (typeof SERVICES)[number];
 export type AccountLifecycleDeps = { db: Database; now?: () => Date };
 type User = typeof schema.users.$inferSelect;
 type Membership = typeof schema.serviceMemberships.$inferSelect;
@@ -23,7 +22,7 @@ function fail(code: DomainError["code"], message: string): never {
   throw new DomainError(code, message);
 }
 function checkService(service: string): asserts service is Service {
-  if (!(SERVICES as readonly string[]).includes(service)) fail("validation", "unknown_service");
+  if (!isService(service)) fail("validation", "unknown_service");
 }
 async function lockOwner(db: Database, userId: string) {
   const [user] = await db
@@ -44,7 +43,7 @@ function confirm(user: User, input: string) {
 /** 以前のクライアント設定も、残っている認可・トークンから利用先を拾う。 */
 async function discoverServices(db: Database, userId: string) {
   const clients = await db
-    .select({ name: schema.oauthClients.name })
+    .select({ metadata: schema.oauthClients.metadata })
     .from(schema.oauthAccessTokens)
     .innerJoin(
       schema.oauthClients,
@@ -52,17 +51,15 @@ async function discoverServices(db: Database, userId: string) {
     )
     .where(eq(schema.oauthAccessTokens.userId, userId));
   const consents = await db
-    .select({ name: schema.oauthClients.name })
+    .select({ metadata: schema.oauthClients.metadata })
     .from(schema.oauthConsents)
     .innerJoin(schema.oauthClients, eq(schema.oauthConsents.clientId, schema.oauthClients.clientId))
     .where(eq(schema.oauthConsents.userId, userId));
-  for (const name of new Set([...clients, ...consents].map((c) => c.name))) {
-    if (name && (SERVICES as readonly string[]).includes(name))
-      await db
-        .insert(schema.serviceMemberships)
-        .values({ userId, service: name })
-        .onConflictDoNothing();
-  }
+  const services = new Set(
+    [...clients, ...consents].map((c) => serviceOfClientMetadata(c.metadata)).filter(isService),
+  );
+  for (const service of services)
+    await db.insert(schema.serviceMemberships).values({ userId, service }).onConflictDoNothing();
 }
 function snapshot(user: Pick<User, "status" | "deletedAt">, membership: Membership) {
   if (membership.purgedAt) return { state: "purged" as const, deletedAt: null, recoverUntil: null };
@@ -89,9 +86,7 @@ async function emit(
     .update(schema.serviceMemberships)
     .set({ revision })
     .where(eq(schema.serviceMemberships.id, membership.id));
-  const clients = await db.query.oauthClients.findMany({
-    where: eq(schema.oauthClients.name, membership.service),
-  });
+  const clients = await clientsOfService(db, membership.service as Service);
   const state = forcePurge
     ? { state: "purged" as const, deletedAt: null, recoverUntil: null }
     : snapshot(user, membership);
@@ -116,12 +111,7 @@ async function emit(
   return { ...membership, revision };
 }
 async function revokeTokens(db: Database, userId: string, service?: Service) {
-  const clients = service
-    ? await db.query.oauthClients.findMany({
-        where: eq(schema.oauthClients.name, service),
-        columns: { clientId: true },
-      })
-    : null;
+  const clients = service ? await clientsOfService(db, service) : null;
   if (clients) {
     for (const client of clients) {
       await db
@@ -252,8 +242,7 @@ export async function pendingRecovery(
     where: eq(schema.users.id, userId),
   });
   const account = user?.status === "deleted" ? open(user.deletedAt) : null;
-  if (!service || !(SERVICES as readonly string[]).includes(service))
-    return { account, service: null };
+  if (!isService(service)) return { account, service: null };
   const row = await deps.db.query.serviceMemberships.findFirst({
     columns: { deletedAt: true, purgedAt: true },
     where: and(

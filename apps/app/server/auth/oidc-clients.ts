@@ -1,8 +1,9 @@
+import { isService, type Service } from "@lumorphia-accounts/core";
 import type { Auth } from "./auth.ts";
 import { normalizeHost } from "./miauth-host.ts";
 
 export type ServiceClientConfig = {
-  service: "prismtone" | "scenote" | "facetia";
+  service: Service;
   redirectUri: string;
   postLogoutRedirectUri?: string;
   lifecycleUri?: string;
@@ -18,8 +19,7 @@ function webUri(input: string): string {
 }
 
 export function serviceClientMetadata(config: ServiceClientConfig) {
-  if (!["prismtone", "scenote", "facetia"].includes(config.service))
-    throw new Error("unknown service");
+  if (!isService(config.service)) throw new Error("unknown service");
   return {
     client_name: config.service,
     metadata: {
