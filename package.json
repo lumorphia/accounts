@@ -24,7 +24,8 @@
     "audit:high": "pnpm audit --audit-level=high --prod",
     "e2e": "playwright test",
     "dev:certs": "scripts/dev-certs.sh",
-    "worker:characters": "pnpm --filter @lumorphia-accounts/app worker:characters"
+    "worker:characters": "pnpm --filter @lumorphia-accounts/app worker:characters",
+    "worker:accounts": "pnpm --filter @lumorphia-accounts/app worker:accounts"
   },
   "devDependencies": {
     "@lumorphia-accounts/db": "workspace:*",

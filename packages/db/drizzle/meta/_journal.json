@@ -43,6 +43,13 @@
       "when": 1791346177498,
       "tag": "0005_lame_rocket_racer",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791348035069,
+      "tag": "0006_rainy_james_howlett",
+      "breakpoints": true
     }
   ]
 }

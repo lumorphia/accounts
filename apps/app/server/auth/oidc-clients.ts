@@ -5,6 +5,7 @@ export type ServiceClientConfig = {
   service: "prismtone" | "scenote" | "facetia";
   redirectUri: string;
   postLogoutRedirectUri?: string;
+  lifecycleUri?: string;
   backchannelLogoutUri?: string;
 };
 
@@ -21,6 +22,12 @@ export function serviceClientMetadata(config: ServiceClientConfig) {
     throw new Error("unknown service");
   return {
     client_name: config.service,
+    metadata: {
+      lumorphia_service: config.service,
+      lifecycle_uri: webUri(
+        config.lifecycleUri ?? new URL("/api/lumorphia/account-events", config.redirectUri).href,
+      ),
+    },
     redirect_uris: [webUri(config.redirectUri)],
     scope: `openid profile email lumorphia:characters${config.service === "prismtone" ? " lumorphia:identities" : ""}`,
     grant_types: ["authorization_code"] as ["authorization_code"],

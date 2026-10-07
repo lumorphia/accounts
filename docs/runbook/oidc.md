@@ -13,7 +13,8 @@ Better Auth / oauth-provider は 1.7.7 に固定する (ADR-0003)。discovery �
   "service": "prismtone",
   "redirectUri": "https://prismtone.lumorphia.com/api/auth/callback/lumorphia",
   "postLogoutRedirectUri": "https://prismtone.lumorphia.com/",
-  "backchannelLogoutUri": "https://prismtone.lumorphia.com/api/lumorphia/backchannel-logout"
+  "backchannelLogoutUri": "https://prismtone.lumorphia.com/api/lumorphia/backchannel-logout",
+  "lifecycleUri": "https://prismtone.lumorphia.com/api/lumorphia/account-events"
 }
 ```
 
@@ -72,3 +73,5 @@ EdDSA (Ed25519)。秘密鍵は `AUTH_SECRET` で保護され、DB に暗号化�
 `oidc-logout.db.test.ts` では登録済みの配送先だけをローカル HTTP 受信サーバーへ向け、DB・JWT の署名検証・通知の内容・失敗時の継続を確認する。`e2e/oidc-network.ts` は E2E の発行元プロセスだけに preload し、既知の JWKS と通知先の通信を手元の TLS サーバーへ向ける。手元 CA とホスト名による証明書の検証は有効なまま。ブラウザ E2E は hint 付きの logout と、hint 無しの確認フォームの両方で、CSP 違反なくサービスへ戻り Cookie のセッションが終了することを確認する。
 
 サービス側のセッションを消す受け口と Logout Token の検証は、次の `@lumorphia/auth-client` で実装する。
+
+退会と復旧の通知先は `lifecycleUri`。登録と再送の手順は [退会 runbook](account-deletion.md)。

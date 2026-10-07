@@ -4,6 +4,10 @@ import { loadCharacterWorkerEnv } from "./character-worker-env.ts";
 // 環境変数。認証の値は開発・E2E でも https のホスト名を使う。
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  FEATURE_ACCOUNT_LIFECYCLE: z
+    .enum(["0", "1", "true", "false"])
+    .default("0")
+    .transform((v) => v === "1" || v === "true"),
   PORT: z.coerce.number().int().positive().default(3100),
   HOST: z.string().default("0.0.0.0"),
   LOG_LEVEL: z.string().default("info"),
