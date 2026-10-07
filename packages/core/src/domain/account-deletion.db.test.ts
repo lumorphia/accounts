@@ -242,6 +242,40 @@ describe.skipIf(!databaseUrl)("account lifecycle (PostgreSQL)", () => {
     expect(services.find((s) => s.service === "prismtone")?.state).toBe("deleted");
     expect(services.find((s) => s.service === "scenote")?.state).toBe("active");
   });
+  it("notifies and revokes a service client by its metadata even after its display name changes", async () => {
+    const user = await setup();
+    const clientId = `test-${user.handle.slice(4)}-prismtone`;
+    await database.db
+      .update(schema.oauthClients)
+      .set({ name: "Prismtone (renamed)" })
+      .where(eq(schema.oauthClients.clientId, clientId));
+    await database.db.insert(schema.oauthAccessTokens).values({
+      token: `test-${randomUUID()}`,
+      clientId,
+      userId: user.id,
+      expiresAt: new Date(now.getTime() + day),
+      createdAt: now,
+      scopes: ["openid"],
+    });
+    await deleteServiceAccount(deps(), user.id, "prismtone", user.handle);
+    expect((await events(user.id)).map((e) => e.clientId)).toContain(clientId);
+    expect(
+      await database.db.query.oauthAccessTokens.findMany({
+        where: eq(schema.oauthAccessTokens.clientId, clientId),
+      }),
+    ).toEqual([]);
+  });
+  it("ignores a client named like a service without the service metadata", async () => {
+    const user = await setup();
+    const decoy = `test-decoy-${randomUUID().slice(0, 8)}`;
+    await database.db.insert(schema.oauthClients).values({
+      clientId: decoy,
+      name: "prismtone",
+      redirectUris: ["https://decoy.lumorphia.test/callback"],
+    });
+    await deleteLumorphiaAccount(deps(), user.id, user.handle);
+    expect((await events(user.id)).some((e) => e.clientId === decoy)).toBe(false);
+  });
   it("purges expired global accounts including identities and characters but keeps pending events", async () => {
     const user = await setup();
     await database.db.insert(schema.characters).values({
