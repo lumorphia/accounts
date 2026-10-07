@@ -1,5 +1,6 @@
 import { and, asc, eq, schema, type Database } from "@lumorphia-accounts/db";
 import { DomainError } from "./errors.ts";
+import { assertLegacyHandleAccess, withLegacyHandleLock } from "./legacy-ledger.ts";
 import { HANDLE_CHANGE_COOLDOWN_DAYS, validateHandle } from "./handle.ts";
 
 export const NAME_MAX_LENGTH = 50;
@@ -31,6 +32,13 @@ export function handleLockedUntil(changedAt: Date | null): Date | null {
 export async function handleAvailability(db: Database, handle: string, selfId: string | null) {
   const valid = validateHandle(handle);
   if (!valid.ok) return { available: false, reason: valid.reason } as const;
+  try {
+    await assertLegacyHandleAccess(db, handle, selfId);
+  } catch (error) {
+    if (error instanceof DomainError && error.code === "conflict")
+      return { available: false, reason: "reserved" as const };
+    throw error;
+  }
   const [owner] = await db
     .select({ id: schema.users.id })
     .from(schema.users)
@@ -47,25 +55,29 @@ export async function completeOnboarding(
   input: { handle: string; name: string },
   now = new Date(),
 ) {
-  assertHandle(input.handle);
-  const name = normalizeName(input.name);
-  const user = await db.query.users.findFirst({
-    columns: { status: true },
-    where: eq(schema.users.id, userId),
+  return withLegacyHandleLock(db, async (tx) => {
+    assertHandle(input.handle);
+    const name = normalizeName(input.name);
+    const [user] = await tx
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.id, userId))
+      .for("update");
+    if (!user) throw new DomainError("not_found", "user not found");
+    if (user.status !== "pending") throw new DomainError("conflict", "account already set up");
+    await assertLegacyHandleAccess(tx, input.handle, userId);
+    try {
+      const rows = await tx
+        .update(schema.users)
+        .set({ handle: input.handle, name, status: "active", handleChangedAt: now })
+        .where(and(eq(schema.users.id, userId), eq(schema.users.status, "pending")))
+        .returning({ id: schema.users.id });
+      if (rows.length === 0) throw new DomainError("conflict", "account already set up");
+    } catch (error) {
+      if (isUniqueViolation(error)) throw new DomainError("conflict", "handle is taken");
+      throw error;
+    }
   });
-  if (!user) throw new DomainError("not_found", "user not found");
-  if (user.status !== "pending") throw new DomainError("conflict", "account already set up");
-  try {
-    const rows = await db
-      .update(schema.users)
-      .set({ handle: input.handle, name, status: "active", handleChangedAt: now })
-      .where(and(eq(schema.users.id, userId), eq(schema.users.status, "pending")))
-      .returning({ id: schema.users.id });
-    if (rows.length === 0) throw new DomainError("conflict", "account already set up");
-  } catch (error) {
-    if (isUniqueViolation(error)) throw new DomainError("conflict", "handle is taken");
-    throw error;
-  }
 }
 
 export async function getProfile(db: Database, userId: string) {
@@ -88,31 +100,35 @@ export async function updateProfile(
   input: { name?: string | undefined; handle?: string | undefined },
   now = new Date(),
 ) {
-  const user = await db.query.users.findFirst({
-    columns: { handle: true, handleChangedAt: true, status: true },
-    where: eq(schema.users.id, userId),
-  });
-  if (!user) throw new DomainError("not_found", "user not found");
-  if (user.status !== "active") throw new DomainError("forbidden", "account not active");
-  const patch: Partial<typeof schema.users.$inferInsert> = {};
-  if (input.name !== undefined) patch.name = normalizeName(input.name);
-  if (input.handle !== undefined && input.handle !== user.handle) {
-    assertHandle(input.handle);
-    const lockedUntil = handleLockedUntil(user.handleChangedAt);
-    if (lockedUntil && lockedUntil > now)
-      throw new DomainError("conflict", `handle is locked until ${lockedUntil.toISOString()}`);
-    patch.handle = input.handle;
-    patch.handleChangedAt = now;
-  }
-  if (Object.keys(patch).length) {
-    try {
-      await db.update(schema.users).set(patch).where(eq(schema.users.id, userId));
-    } catch (error) {
-      if (isUniqueViolation(error)) throw new DomainError("conflict", "handle is taken");
-      throw error;
+  return withLegacyHandleLock(db, async (tx) => {
+    const [user] = await tx
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.id, userId))
+      .for("update");
+    if (!user) throw new DomainError("not_found", "user not found");
+    if (user.status !== "active") throw new DomainError("forbidden", "account not active");
+    const patch: Partial<typeof schema.users.$inferInsert> = {};
+    if (input.name !== undefined) patch.name = normalizeName(input.name);
+    if (input.handle !== undefined && input.handle !== user.handle) {
+      assertHandle(input.handle);
+      await assertLegacyHandleAccess(tx, input.handle, userId);
+      const lockedUntil = handleLockedUntil(user.handleChangedAt);
+      if (lockedUntil && lockedUntil > now)
+        throw new DomainError("conflict", `handle is locked until ${lockedUntil.toISOString()}`);
+      patch.handle = input.handle;
+      patch.handleChangedAt = now;
     }
-  }
-  return getProfile(db, userId);
+    if (Object.keys(patch).length) {
+      try {
+        await tx.update(schema.users).set(patch).where(eq(schema.users.id, userId));
+      } catch (error) {
+        if (isUniqueViolation(error)) throw new DomainError("conflict", "handle is taken");
+        throw error;
+      }
+    }
+    return getProfile(tx, userId);
+  });
 }
 
 export async function listLinkedAccounts(db: Database, userId: string) {

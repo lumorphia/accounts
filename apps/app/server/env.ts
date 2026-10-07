@@ -21,6 +21,11 @@ const envSchema = z.object({
     .url()
     .startsWith("https://")
     .default("https://accounts.lumorphia.test:8443"),
+  LEGACY_PRISMTONE_MIGRATION_URL: z
+    .string()
+    .url()
+    .startsWith("https://")
+    .default("https://prismtone.lumorphia.com/settings/migration"),
   AUTH_DISCORD_ID: z.string().optional(),
   AUTH_DISCORD_SECRET: z.string().optional(),
   AUTH_GOOGLE_ID: z.string().optional(),

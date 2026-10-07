@@ -3,7 +3,7 @@ import type { BetterAuthPlugin } from "better-auth";
 import { jwt, signJWT } from "better-auth/plugins/jwt";
 import { z } from "zod";
 import { APIError, createAuthEndpoint } from "better-auth/api";
-import { visitService } from "@lumorphia-accounts/core";
+import { legacyPendingServices, visitService } from "@lumorphia-accounts/core";
 import { eq, schema, type Database } from "@lumorphia-accounts/db";
 
 export const OIDC_CLAIM_NAMESPACE = "https://lumorphia.com/";
@@ -13,9 +13,10 @@ export const OIDC_SCOPES = [
   "email",
   "lumorphia:identities",
   "lumorphia:characters",
+  "lumorphia:legacy",
 ];
 
-/** claim は最新の利用者状態と連携から作る。台帳の legacy_pending は A1.5 で埋める。 */
+/** claim は最新の利用者状態、連携、引き継ぎ待ちの台帳から作る。 */
 export async function lumorphiaClaims(
   db: Database,
   userId: string,
@@ -30,7 +31,7 @@ export async function lumorphiaClaims(
   const profile = scopes.includes("profile")
     ? {
         [`${OIDC_CLAIM_NAMESPACE}handle`]: user.handle,
-        [`${OIDC_CLAIM_NAMESPACE}legacy_pending`]: [],
+        [`${OIDC_CLAIM_NAMESPACE}legacy_pending`]: await legacyPendingServices(db, userId),
       }
     : {};
   if (!scopes.includes("lumorphia:identities")) return profile;
@@ -120,6 +121,11 @@ export function oidcPlugins(db: Database) {
         },
       ),
       // パスを持たないサーバー内専用の呼び出し。HTTP の auth catch-all には公開しない。
+      legacyAccess: createAuthEndpoint.serverOnly(
+        { method: "POST", body: z.object({ token: z.string().min(1).max(8192) }) },
+        async (ctx) =>
+          getOAuthProviderApi(ctx, provider.options).requireActiveAccessToken(ctx.body.token),
+      ),
       characterAccess: createAuthEndpoint(
         {
           method: "POST",

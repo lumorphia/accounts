@@ -17,6 +17,16 @@ describe("serviceClientMetadata", () => {
     ).not.toContain("lumorphia:identities");
   });
 
+  it("registers the migration completion scope only for Prismtone", () => {
+    for (const service of ["prismtone", "scenote", "facetia"] as const) {
+      const scope = serviceClientMetadata({
+        service,
+        redirectUri: `https://${service}.lumorphia.test/callback`,
+      }).scope;
+      expect(scope.includes("lumorphia:legacy")).toBe(service === "prismtone");
+    }
+  });
+
   it("rejects web redirect URLs outside HTTPS hosts", () => {
     for (const redirectUri of [
       "http://prismtone.example/callback",

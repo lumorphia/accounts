@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { LegacyMigrationGuide } from "../components/legacy-migration-guide.tsx";
 import { AccountLifecycleSettings } from "../components/account-lifecycle-settings.tsx";
 import { CharacterSettings } from "../components/character-settings.tsx";
 import type { Route } from "./+types/settings";
@@ -445,6 +446,7 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
               </button>
             </form>
           </section>
+          <LegacyMigrationGuide />
           <AccountLifecycleSettings handle={user.handle} />
         </>
       )}

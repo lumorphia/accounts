@@ -83,6 +83,7 @@ pnpm e2e                                    # Playwright (https)
 pnpm dev:certs                              # 開発と E2E の TLS を作る (あれば作り直さない)
 pnpm worker:characters                      # キャラクター worker (FEATURE_LODESTONE=0 が既定)
 pnpm worker:accounts                        # 退会 worker (FEATURE_ACCOUNT_LIFECYCLE=0 が既定)
+node --env-file-if-exists=.env scripts/legacy-ledger.ts --input /path/to/ledger.json # 台帳の確認 (--apply で確定)
 ```
 
 DB テストを手元で回すとき: `DATABASE_URL=$(grep '^DATABASE_URL' .env | cut -d= -f2-) pnpm test`
