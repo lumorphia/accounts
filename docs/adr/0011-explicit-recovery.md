@@ -17,8 +17,8 @@ ADR-0008 では、30 日以内のログインで復旧していた。全体の�
 - ログインしても復旧しない。期限内に退会した利用者はセッションを作れるが、状態は `deleted` のまま。期限を過ぎていればセッションを作らない (`assertLoginAllowed`)
 - 全体の復旧は `POST /api/me/restore` (`restoreLumorphiaAccount`) で、ダッシュボード (`/`) の「復旧する」から呼ぶ。退会中のセッションは、ほかの `/api/me/*` を使えない (`requireSession` が拒む)
 - サービスだけの退会は、ダッシュボードの「<サービス> を復旧する」から、既存の `POST /api/me/services/:service/restore` を呼んで戻す
-- OIDC の認可 (`/oauth2/authorize`) の前に `recoveryGate` が確かめる。全体またはそのサービスが期限内の退会中なら、`/?next=<認可要求>` (サービスだけなら `&service=<名前>`) へ寄せる。復旧したら next に戻って認可を続ける。サービスはクライアントの `metadata.lumorphia_service` で見分ける
-- `prompt=none` は画面を出せないので寄せない。その代わりトークンの発行で拒む。全体の退会は `lumorphiaClaims` が `active` 以外を拒み、サービスの退会は `visitService` が `service_deleted` で拒む
+- OIDC の認可 (`/oauth2/authorize`) の前に `authorizeGate` が確かめる。全体またはそのサービスが期限内の退会中なら、`/?next=<認可要求>` (サービスだけなら `&service=<名前>`) へ寄せる。復旧したら next に戻って認可を続ける。サービスはクライアントの `metadata.lumorphia_service` で見分ける
+- `prompt=none` は画面を出せないので寄せない。その代わりトークンの発行で拒む。全体の退会は `lumorphiaClaims` が `active` 以外を拒み、サービスの退会は `service_deleted` で拒む (確認の場所は [ADR-0012](0012-service-identity-and-authorize-side-effects.md) でトークン発行時の読み取りに移した)
 - サービスの期限を過ぎたあとに入り直した場合は、これまでどおり `purged` を通知してから新しく使い始める。これは復旧ではない
 
 ## Consequences
