@@ -9,10 +9,11 @@ import {
   getSessionFromCtx,
 } from "better-auth/api";
 import {
-  DomainError,
   legacyPendingServices,
   pendingRecovery,
+  serviceOfClientMetadata,
   visitService,
+  type Service,
 } from "@lumorphia-accounts/core";
 import { eq, schema, type Database } from "@lumorphia-accounts/db";
 
@@ -57,44 +58,50 @@ export async function lumorphiaClaims(
   };
 }
 
-async function serviceOfClient(db: Database, clientId: unknown): Promise<string | null> {
+async function serviceOfClient(db: Database, clientId: unknown): Promise<Service | null> {
   if (typeof clientId !== "string") return null;
   const client = await db.query.oauthClients.findFirst({
     columns: { metadata: true },
     where: eq(schema.oauthClients.clientId, clientId),
   });
-  const service = (client?.metadata as Record<string, unknown> | null)?.lumorphia_service;
-  return typeof service === "string" ? service : null;
+  return serviceOfClientMetadata(client?.metadata);
 }
 
 /**
- * 退会中 (全体またはそのサービス) の利用者は、認可の前にダッシュボードへ寄せて復旧を選ばせる。
- * ログインだけでは復旧しない (ADR-0011)。復旧後は next の認可要求に戻る。
- * prompt=none は画面を出せないので通し、トークン発行の側で拒む。
+ * 認可の入口。トークンの発行より前に、状態を変える処理をここに集める (claim を作る処理では書かない)。
+ *
+ * - 退会中 (全体またはそのサービス) なら、ダッシュボードへ寄せて復旧を選ばせる (ADR-0011)。
+ *   prompt=none は画面を出せないので寄せず、トークン発行の側で拒む
+ * - そうでなければ、そのサービスを使い始めたことを記録する (visitService)。
+ *   初回設定前 (pending) は /welcome から認可に戻ったときに記録する
  */
-export function recoveryGate(db: Database) {
+export function authorizeGate(db: Database) {
   return {
-    id: "recovery-gate",
+    id: "authorize-gate",
     hooks: {
       before: [
         {
           matcher: (ctx) => ctx.path === "/oauth2/authorize",
           handler: createAuthMiddleware(async (ctx) => {
             const query = (ctx.query ?? {}) as Record<string, unknown>;
-            if (typeof query.prompt === "string" && query.prompt.split(" ").includes("none"))
-              return;
+            const promptNone =
+              typeof query.prompt === "string" && query.prompt.split(" ").includes("none");
             const session = await getSessionFromCtx(ctx);
             if (!session) return;
             const service = await serviceOfClient(db, query.client_id);
             const pending = await pendingRecovery({ db }, session.user.id, service);
-            if (!pending.account && !pending.service) return;
-            const requested = ctx.request ? new URL(ctx.request.url) : null;
-            const next = requested
-              ? `${requested.pathname}${requested.search}`
-              : `/api/auth/oauth2/authorize?${new URLSearchParams(query as Record<string, string>)}`;
-            const dashboard = new URLSearchParams({ next });
-            if (!pending.account && pending.service && service) dashboard.set("service", service);
-            throw ctx.redirect(`/?${dashboard}`);
+            if (pending.account || pending.service) {
+              if (promptNone) return;
+              const requested = ctx.request ? new URL(ctx.request.url) : null;
+              const next = requested
+                ? `${requested.pathname}${requested.search}`
+                : `/api/auth/oauth2/authorize?${new URLSearchParams(query as Record<string, string>)}`;
+              const dashboard = new URLSearchParams({ next });
+              if (!pending.account && pending.service && service) dashboard.set("service", service);
+              throw ctx.redirect(`/?${dashboard}`);
+            }
+            if (service && session.user.status === "active")
+              await visitService({ db }, session.user.id, service);
           }),
         },
       ],
@@ -122,15 +129,12 @@ export function oidcPlugins(db: Database) {
     allowDynamicClientRegistration: false,
     allowUnauthenticatedClientRegistration: false,
     clientPrivileges: ({ user }) => user?.role === "admin" && user?.status === "active",
+    // 状態は変えない。認可の入口 (authorizeGate) で記録したあとに退会したサービスへは発行しない
     customIdTokenClaims: async ({ user, scopes, metadata }) => {
-      const claims = await lumorphiaClaims(db, user.id, scopes);
-      if (typeof metadata?.lumorphia_service === "string")
-        await visitService({ db }, user.id, metadata.lumorphia_service).catch((error: unknown) => {
-          if (error instanceof DomainError)
-            throw APIError.from("FORBIDDEN", { code: "access_denied", message: error.message });
-          throw error;
-        });
-      return claims;
+      const service = serviceOfClientMetadata(metadata);
+      if (service && (await pendingRecovery({ db }, user.id, service)).service)
+        throw APIError.from("FORBIDDEN", { code: "access_denied", message: "service_deleted" });
+      return lumorphiaClaims(db, user.id, scopes);
     },
     customUserInfoClaims: ({ user, scopes }) => lumorphiaClaims(db, user.id, scopes),
   });
@@ -147,8 +151,9 @@ export function oidcPlugins(db: Database) {
       gracePeriod: 7 * 86_400,
     },
   });
-  const access = {
-    id: "character-access",
+  // サーバー内からだけ呼ぶ口。HTTP には出さない (serverOnly、かつ public-endpoints.ts の許可リストの外)
+  const internal = {
+    id: "lumorphia-internal",
     endpoints: {
       signAccountEvent: createAuthEndpoint.serverOnly(
         {
@@ -179,25 +184,17 @@ export function oidcPlugins(db: Database) {
           };
         },
       ),
-      // パスを持たないサーバー内専用の呼び出し。HTTP の auth catch-all には公開しない。
-      legacyAccess: createAuthEndpoint.serverOnly(
+      /** サービス間 API の Bearer を確かめる (server/auth/service-access.ts) */
+      serviceAccess: createAuthEndpoint.serverOnly(
         { method: "POST", body: z.object({ token: z.string().min(1).max(8192) }) },
-        async (ctx) =>
-          getOAuthProviderApi(ctx, provider.options).requireActiveAccessToken(ctx.body.token),
-      ),
-      characterAccess: createAuthEndpoint(
-        {
-          method: "POST",
-          body: z.object({ token: z.string().min(1).max(8192) }),
-        },
         async (ctx) =>
           getOAuthProviderApi(ctx, provider.options).requireActiveAccessToken(ctx.body.token),
       ),
     },
   } satisfies BetterAuthPlugin;
   return [
-    recoveryGate(db),
-    access,
+    authorizeGate(db),
+    internal,
     keys,
     // 1.7.7 の OpenAPI metadata の型は exactOptionalPropertyTypes と合わない。
     // 実行時の plugin を変えず、具体的な endpoint の型を残して境界だけ合わせる。

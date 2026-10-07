@@ -265,6 +265,28 @@ describe.skipIf(!databaseUrl)("character routes (PostgreSQL)", () => {
       .set({ disabled: false })
       .where(eq(schema.oauthClients.clientId, client.client_id));
   });
+  it("identifies the calling service by its metadata rather than its display name", async () => {
+    const original = await app.db.query.oauthClients.findFirst({
+      where: eq(schema.oauthClients.clientId, client.client_id),
+    });
+    try {
+      await app.db
+        .update(schema.oauthClients)
+        .set({ name: "Scenote (renamed)" })
+        .where(eq(schema.oauthClients.clientId, client.client_id));
+      expect((await service(accessToken)).statusCode).toBe(200);
+      await app.db
+        .update(schema.oauthClients)
+        .set({ name: "scenote", metadata: null })
+        .where(eq(schema.oauthClients.clientId, client.client_id));
+      expect((await service(accessToken)).statusCode).toBe(401);
+    } finally {
+      await app.db
+        .update(schema.oauthClients)
+        .set({ name: original!.name, metadata: original!.metadata })
+        .where(eq(schema.oauthClients.clientId, client.client_id));
+    }
+  });
   it("denies a revoked access token", async () => {
     const res = await app.inject({
       method: "POST",

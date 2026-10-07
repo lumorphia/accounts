@@ -2,7 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createLocalJWKSet, jwtVerify } from "jose";
 import type { FastifyInstance } from "fastify";
-import { eq, schema } from "@lumorphia-accounts/db";
+import { and, eq, schema } from "@lumorphia-accounts/db";
 import { buildApp } from "../app.ts";
 import { loadEnv } from "../env.ts";
 import { lumorphiaClaims } from "./oidc.ts";
@@ -216,6 +216,34 @@ describe.skipIf(!databaseUrl)("OIDC provider (PostgreSQL)", () => {
     } finally {
       await setServiceDeletedAt(null);
     }
+  });
+
+  const prismtoneMembership = () =>
+    app.db.query.serviceMemberships.findFirst({
+      where: and(
+        eq(schema.serviceMemberships.userId, userId),
+        eq(schema.serviceMemberships.service, "prismtone"),
+      ),
+    });
+
+  it("records the service use when authorization starts", async () => {
+    await app.db
+      .delete(schema.serviceMemberships)
+      .where(eq(schema.serviceMemberships.userId, userId));
+    const { res } = await authorize();
+    expect(res.statusCode, res.body).toBe(302);
+    expect(new URL(String(res.headers.location)).searchParams.get("code")).toBeTruthy();
+    expect(await prismtoneMembership()).toBeDefined();
+  });
+
+  it("issues tokens without writing the service membership", async () => {
+    const { res, verifier } = await authorize();
+    const code = new URL(String(res.headers.location)).searchParams.get("code")!;
+    await app.db
+      .delete(schema.serviceMemberships)
+      .where(eq(schema.serviceMemberships.userId, userId));
+    expect((await token(code, verifier)).statusCode).toBe(200);
+    expect(await prismtoneMembership()).toBeUndefined();
   });
 
   it("publishes discovery and public signing keys", async () => {

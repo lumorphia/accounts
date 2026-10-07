@@ -139,6 +139,24 @@ describe.skipIf(!url)("legacy ledger HTTP (PostgreSQL)", () => {
     const token = await mint(scenote, "openid profile email");
     expect((await complete(token.access_token)).statusCode).toBe(401);
   });
+  it("refuses a client named prismtone whose metadata names another service", async () => {
+    const token = await mint();
+    const original = await app.db.query.oauthClients.findFirst({
+      where: eq(schema.oauthClients.clientId, prismtone.client_id),
+    });
+    try {
+      await app.db
+        .update(schema.oauthClients)
+        .set({ metadata: { ...(original!.metadata as object), lumorphia_service: "scenote" } })
+        .where(eq(schema.oauthClients.clientId, prismtone.client_id));
+      expect((await complete(token.access_token)).statusCode).toBe(401);
+    } finally {
+      await app.db
+        .update(schema.oauthClients)
+        .set({ metadata: original!.metadata })
+        .where(eq(schema.oauthClients.clientId, prismtone.client_id));
+    }
+  });
   it("includes the pending service in a verified ID token and current UserInfo", async () => {
     const tokens = await mint();
     const jwks = (await app.inject({ method: "GET", url: "/api/auth/jwks" })).json();
