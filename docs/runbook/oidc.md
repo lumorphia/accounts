@@ -26,6 +26,7 @@ node --env-file-if-exists=.env scripts/oidc-client.ts --config /path/to/client.j
 
 - redirect / logout URI は HTTPS のホスト名に限る。開発も `*.lumorphia.test` を使う
 - `prismtone` のみ `lumorphia:identities` と移行完了通知用の `lumorphia:legacy` を登録する。全サービスに `lumorphia:characters` を登録する。`scenote` と `facetia` は `openid profile email lumorphia:characters`
+- サービスは `metadata.lumorphia_service` で見分ける (ADR-0012)。登録スクリプトが自動で入れる。`client_name` は表示名なので、変えても通知・失効・権限に影響しない。手で DB にクライアントを足すときも `lumorphia_service` を必ず入れる
 - 自社クライアントは同意画面を省略し、end-session を有効にする
 - DB に保存するクライアントの秘密と署名の秘密鍵は Better Auth が保護する
 
