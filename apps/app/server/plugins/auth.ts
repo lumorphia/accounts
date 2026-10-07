@@ -1,6 +1,7 @@
 import fp from "fastify-plugin";
 import type { FastifyRequest } from "fastify";
 import { createAuth, type Auth, type Session, type SessionUser } from "../auth/auth.ts";
+import { isPublicAuthPath } from "../auth/public-endpoints.ts";
 import { DomainError } from "./errors.ts";
 
 declare module "fastify" {
@@ -44,6 +45,14 @@ export const authPlugin = fp<AuthPluginOptions>(
         schema: { hide: true },
         handler: async (req, reply) => {
           const url = new URL(req.url, `${req.protocol}://${req.headers.host ?? "localhost"}`);
+          // 許可リストの外は、Better Auth に渡さずに /api の未知のパスと同じ 404 を返す
+          if (!isPublicAuthPath(url.pathname))
+            return reply.code(404).send({
+              error: {
+                code: "not_found",
+                message: `route not found: ${req.method} ${url.pathname}`,
+              },
+            });
           const headers = new Headers();
           for (const [key, value] of Object.entries(req.headers)) {
             if (value !== undefined)
