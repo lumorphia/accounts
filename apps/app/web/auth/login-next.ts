@@ -13,3 +13,8 @@ export function loginNext(params: URLSearchParams): string {
     return "/";
   }
 }
+
+/** 戻り先がサービスへの認可なら、サービスのログインの途中。時間が経つとサービス側でやり直しになる。 */
+export function isServiceLogin(next: string): boolean {
+  return next.startsWith("/api/auth/oauth2/authorize?");
+}

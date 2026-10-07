@@ -94,7 +94,7 @@ export default function Login({ loaderData }: Route.ComponentProps) {
       {params.get("deleted") === "1" && (
         <p role="status" className="text-sm">
           退会を受け付けました。30
-          日以内に同じアカウントで再ログインすると復旧できます。画像は戻りません。
+          日以内なら、同じアカウントでログインして「復旧する」を選ぶと戻せます。画像は戻りません。
         </p>
       )}
       <p className="text-sm text-ink-muted">Lumorphia アカウントでサービスにログインできます。</p>
