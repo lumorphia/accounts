@@ -26,6 +26,20 @@ fixture は運営者のページから必要な部分だけに縮め、ほかの
 
 確認: 全体 310 件成功 (新規 81 件)、行 90.75%、branch 80%。Lodestone の外部アクセスは使わず、worker の配送・週次スケジュール・無効時の保留・停止は PostgreSQL と pg-boss を使った。
 
-次は A1.3b の CI が緑になってから develop に Rebase and merge し、A1.3c に進む。API と worker の全体で Lodestone の取得間隔を保つ経路を決めること、サービス一覧の access token / scope の検証、token と自己紹介を渡さないこと、fixture の HTTPS E2E を忘れない。
+A1.3b は PR #11 で develop に取り込み済み。
 
 `docs/handoff-a1-1.md` は開始時点からある未追跡ファイルなので、この変更には含めない。
+
+## A1.3c の範囲
+
+`feat/a1-3c-characters-api`。設定画面と本人用 API、専用 scope のサービス用読み取り、API / worker 全体の取得順と間隔を追加した。判断は [ADR-0007](adr/0007-character-api-and-shared-pacing.md)、使い方は [runbook](runbook/characters.md)。
+
+サービス用は `GET /api/characters`。登録済みの自社クライアントと `lumorphia:characters` を確かめ、access token の本人の確認済みだけを返す。所有確認のトークン・自己紹介・内部のエラーは公開しない。現在の利用者状態を読み直す。
+
+PostgreSQL の singleton 行を本文の受信完了までロックし、次の取得まで最低 1 秒待つ。API と worker は専用の pool を持ち、独立した接続からの同時取得と失敗後の間隔も DB テストで確認する。新しいマイグレーションは Drizzle で生成した。
+
+API と共有取得制御のテスト、設定画面の E2E を実装前に失敗させてから通した。HTTPS E2E は運営者の HTML fixture を返すローカルモックで登録・再発行・確認・解除・検索・再同期のキュー投入を行う。サービス用は実際の HTTPS API へ access token を渡す。
+
+確認: 単体・PostgreSQL の DB テスト全体 328 件 (新規 18 件)、HTTPS E2E 全体 24 件 (新規 3 件)、行 90.8%、branch 80.87%。lint・format:check・typecheck も成功。
+
+A1.3c の CI が緑になってから develop に Rebase and merge する。次は A1.4 (退会 2 種類、30 日の復旧、物理削除、通知の再送)。本番 compose と監視の接続は A1.6 のまま。

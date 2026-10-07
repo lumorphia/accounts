@@ -6,6 +6,7 @@ const HOST = "accounts.lumorphia.test";
 const OAUTH_PORT = Number(process.env.MOCK_OAUTH_PORT ?? 3401);
 const MISSKEY_PORT = Number(process.env.MOCK_MISSKEY_PORT ?? 3399);
 const MASTODON_PORT = Number(process.env.MOCK_MASTODON_PORT ?? 3402);
+const LODESTONE_PORT = Number(process.env.MOCK_LODESTONE_PORT ?? 3404);
 const TLS = new URL(".data/tls/", import.meta.url).pathname;
 
 /**
@@ -14,6 +15,8 @@ const TLS = new URL(".data/tls/", import.meta.url).pathname;
  */
 export default defineConfig({
   testDir: "./e2e",
+  // OAuth のモックはプロバイダーごとに 1 人のプロフィールを共有する。ファイル間も順に回す。
+  workers: 1,
   timeout: 30_000,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? "github" : "list",
@@ -27,6 +30,12 @@ export default defineConfig({
   },
   projects: [{ name: "chromium", use: { browserName: "chromium" } }],
   webServer: [
+    {
+      command: "node e2e/mock-lodestone.ts",
+      url: `http://127.0.0.1:${LODESTONE_PORT}/health`,
+      reuseExistingServer: !process.env.CI,
+      env: { MOCK_LODESTONE_PORT: String(LODESTONE_PORT) },
+    },
     {
       command: "node e2e/mock-misskey.ts",
       url: `http://127.0.0.1:${MISSKEY_PORT}/api/meta`,
@@ -54,6 +63,9 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
       env: {
+        FEATURE_LODESTONE: "1",
+        LODESTONE_BASE_URL: `http://127.0.0.1:${LODESTONE_PORT}`,
+        LODESTONE_USER_AGENT: "lumorphia-accounts/e2e",
         MOCK_OIDC_PORT: process.env.MOCK_OIDC_PORT ?? "3403",
         NODE_ENV: "test",
         PORT: String(PORT),

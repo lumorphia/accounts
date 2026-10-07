@@ -24,7 +24,7 @@ node --env-file-if-exists=.env scripts/oidc-client.ts --config /path/to/client.j
 出力は秘密を含むので、権限 0600 の新規ファイルに保存する。既存ファイルを上書きしない。サービスの環境変数には `client_id` と `client_secret` を設定する。運営者のセッションが無い場合・一般利用者の場合は登録できない。
 
 - redirect / logout URI は HTTPS のホスト名に限る。開発も `*.lumorphia.test` を使う
-- `prismtone` のみ `lumorphia:identities` を登録する。`scenote` と `facetia` は `openid profile email`
+- `prismtone` のみ `lumorphia:identities` を登録する。全サービスに `lumorphia:characters` を登録する。`scenote` と `facetia` は `openid profile email lumorphia:characters`
 - 自社クライアントは同意画面を省略し、end-session を有効にする
 - DB に保存するクライアントの秘密と署名の秘密鍵は Better Auth が保護する
 
@@ -33,6 +33,8 @@ node --env-file-if-exists=.env scripts/oidc-client.ts --config /path/to/client.j
 `profile` scope では `https://lumorphia.com/handle` と `https://lumorphia.com/legacy_pending` を ID トークンと UserInfo に載せる。旧アカウントの台帳は A1.5 で作るため、それまでは `legacy_pending` は空の配列。
 
 `lumorphia:identities` scope を登録・要求したクライアントだけに `https://lumorphia.com/identities` (provider / id の配列) を渡す。開発用ログインの組は含めない。claim の生成には最新の利用者状態を確認し、active 以外には発行しない。
+
+`lumorphia:characters` はキャラクター一覧 API の読み取り権限。キャラクターや確認トークンを ID トークン / UserInfo に載せない。使い方は [キャラクター runbook](characters.md)。
 
 ## ログインと初回設定から戻る
 

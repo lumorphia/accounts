@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { CharacterSettings } from "../components/character-settings.tsx";
 import type { Route } from "./+types/settings";
 
 type User = {
@@ -325,6 +326,7 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
               </button>
             </form>
           </section>
+          <CharacterSettings />
           <section className="space-y-4" aria-labelledby="accounts-heading">
             <h2 id="accounts-heading" className="text-xl font-semibold">
               接続しているアカウント

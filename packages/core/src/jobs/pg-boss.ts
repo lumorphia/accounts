@@ -41,6 +41,26 @@ function transactionAdapter(transaction: Database) {
   };
 }
 
+/** API は投入だけを行い、worker と同じキューを使う。 */
+export async function startCharacterQueue(
+  connectionString: string,
+  log: Pick<CharacterWorkerLog, "error">,
+) {
+  const boss = new PgBoss({ connectionString });
+  boss.on("error", (err) => log.error({ err }, "character queue error"));
+  try {
+    await boss.start();
+    await prepareCharacterQueues(boss);
+  } catch (error) {
+    await boss.stop({ graceful: false });
+    throw error;
+  }
+  return {
+    queue: new PgBossJobQueue(boss),
+    stop: () => boss.stop({ graceful: true, timeout: 25_000 }),
+  };
+}
+
 export type CharacterWorkerLog = {
   info: (fields: object, message: string) => void;
   error: (fields: object, message: string) => void;

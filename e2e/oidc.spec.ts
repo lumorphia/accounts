@@ -96,7 +96,7 @@ test.describe("OIDC browser authorization", () => {
     );
   });
 
-  async function authorizeSession(page: Page) {
+  async function authorizeSession(page: Page, scope = "openid profile") {
     receivedLogoutTokens = [];
     await gotoHydrated(page, "/login");
     await page.getByLabel("開発用ログイン").fill(`lo_${randomBytes(6).toString("hex")}`);
@@ -107,7 +107,7 @@ test.describe("OIDC browser authorization", () => {
       client_id: client.client_id,
       redirect_uri: redirectUri,
       response_type: "code",
-      scope: "openid profile",
+      scope,
       state: "test-logout-auth",
       nonce: "test-logout-nonce",
       code_challenge: createHash("sha256").update(verifier).digest("base64url"),
@@ -134,7 +134,11 @@ test.describe("OIDC browser authorization", () => {
       }).toString(),
     });
     expect(exchanged.statusCode).toBe(200);
-    return { query, idToken: exchanged.json().id_token as string };
+    return {
+      query,
+      idToken: exchanged.json().id_token as string,
+      accessToken: exchanged.json().access_token as string,
+    };
   }
 
   for (const provider of [
@@ -262,6 +266,46 @@ test.describe("OIDC browser authorization", () => {
       expect(info.json()["https://lumorphia.com/handle"]).toBe(handle);
     });
   }
+  test("a scoped service token reads its owner's verified characters over HTTPS", async ({
+    page,
+  }) => {
+    const tokens = await authorizeSession(page, "openid profile lumorphia:characters");
+    const userId = decodeJwt(tokens.idToken).sub!;
+    // 合成データ。Lodestone の fixture やほかのプレイヤーを参照しない。
+    const [character] = await app.db
+      .insert(schema.characters)
+      .values({
+        userId,
+        lodestoneId: String(10_000_000_000n + BigInt(`0x${randomBytes(4).toString("hex")}`)),
+        name: "Test Character",
+        world: "Tiamat",
+        dataCenter: "Gaia",
+        verifiedAt: new Date(),
+        isPrimary: true,
+      })
+      .returning();
+    try {
+      await gotoHydrated(page, "/settings");
+      const result = await page.evaluate(async (token) => {
+        const response = await fetch("/api/characters", {
+          headers: { authorization: `Bearer ${token}` },
+        });
+        return {
+          status: response.status,
+          cache: response.headers.get("cache-control"),
+          body: await response.json(),
+        };
+      }, tokens.accessToken);
+      expect(result.status).toBe(200);
+      expect(result.cache).toBe("no-store");
+      expect(result.body.characters).toHaveLength(1);
+      expect(result.body.characters[0]).toMatchObject({ id: character!.id, verified: true });
+      expect(result.body.characters[0].verification).toBeUndefined();
+    } finally {
+      await app.db.delete(schema.characters).where(eq(schema.characters.id, character!.id));
+    }
+  });
+
   test("RP initiated logout clears the browser session and delivers a signed token over TLS", async ({
     page,
   }) => {

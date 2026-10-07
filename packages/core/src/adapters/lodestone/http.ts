@@ -6,11 +6,15 @@ import {
   type LodestoneSource,
 } from "./types.ts";
 
+import type { LodestonePacer } from "./pacing.ts";
+
 type Sleep = (ms: number) => Promise<void>;
 
 export type HttpLodestoneSourceOptions = {
   /** 既定は日本。地域を変えるときは env で (prismtone docs/design/12 §3) */
   baseUrl?: string;
+  /** 本番の API / worker は PostgreSQL の共有制御を渡す */
+  pacer?: LodestonePacer;
   fetch?: typeof fetch;
   /** 誰の取得か分かるようにする。連絡先は公開後に env で足す */
   userAgent?: string;
@@ -31,10 +35,12 @@ export class HttpLodestoneSource implements LodestoneSource {
   private readonly timeoutMs: number;
   private readonly sleep: Sleep;
   private readonly now: () => number;
+  private readonly pacer: LodestonePacer | undefined;
   private lastRequestAt = Number.NEGATIVE_INFINITY;
   private queue: Promise<unknown> = Promise.resolve();
 
   constructor(options: HttpLodestoneSourceOptions = {}) {
+    this.pacer = options.pacer;
     this.baseUrl = (options.baseUrl ?? "https://jp.finalfantasyxiv.com").replace(/\/$/, "");
     this.fetchFn = options.fetch ?? fetch;
     this.userAgent = options.userAgent ?? "lumorphia-accounts/dev";
@@ -69,11 +75,17 @@ export class HttpLodestoneSource implements LodestoneSource {
       await this.waitForRateLimit();
       let response: Response;
       try {
-        response = await this.fetchFn(url, {
-          headers: { "user-agent": this.userAgent, "accept-language": "ja" },
-          signal: AbortSignal.timeout(this.timeoutMs),
-        });
-        if (response.ok) return await response.text();
+        const request = async () => {
+          const response = await this.fetchFn(url, {
+            headers: { "user-agent": this.userAgent, "accept-language": "ja" },
+            signal: AbortSignal.timeout(this.timeoutMs),
+          });
+          // 失敗レスポンスの本文も読み終えるまで共有ロックを保持する。
+          return { response, body: await response.text() };
+        };
+        const result = this.pacer ? await this.pacer.run(request) : await request();
+        response = result.response;
+        if (response.ok) return result.body;
       } catch (err) {
         if (attempt < this.retries) {
           await this.sleep(500 * 2 ** attempt);

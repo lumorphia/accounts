@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { loadCharacterWorkerEnv } from "./character-worker-env.ts";
 
 // 環境変数。認証の値は開発・E2E でも https のホスト名を使う。
 const envSchema = z.object({
@@ -52,7 +53,7 @@ const envSchema = z.object({
   OAUTH_MOCK_BASE_URL: z.string().url().optional(),
 });
 
-export type Env = z.infer<typeof envSchema>;
+export type Env = z.infer<typeof envSchema> & ReturnType<typeof loadCharacterWorkerEnv>;
 
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   const parsed = envSchema.safeParse({
@@ -71,5 +72,5 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
     if (!source.PUBLIC_IMAGE_BASE_URL)
       throw new Error("invalid environment: PUBLIC_IMAGE_BASE_URL is required in production");
   }
-  return parsed.data;
+  return { ...parsed.data, ...loadCharacterWorkerEnv(source) };
 }
