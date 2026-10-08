@@ -122,7 +122,7 @@ describe.skipIf(!url)("characters (PostgreSQL)", () => {
   });
   it("serializes concurrent first registrations", async () => {
     await Promise.all([register(), register(alice, "1002")]);
-    expect((await listCharacters(db, alice)).filter((c) => c.isPrimary)).toHaveLength(1);
+    expect((await listCharacters(db, alice, now)).filter((c) => c.isPrimary)).toHaveLength(1);
   });
   it("rejects one concurrent duplicate registration", async () => {
     const results = await Promise.allSettled([register(), register()]);
@@ -147,7 +147,7 @@ describe.skipIf(!url)("characters (PostgreSQL)", () => {
     expect(results.find((r) => r.status === "rejected")).toMatchObject({
       reason: { message: "too_many_characters" },
     });
-    expect(await listCharacters(db, alice)).toHaveLength(40);
+    expect(await listCharacters(db, alice, now)).toHaveLength(40);
   });
   it("does not fetch when Lodestone is disabled", async () => {
     await expect(
@@ -209,7 +209,7 @@ describe.skipIf(!url)("characters (PostgreSQL)", () => {
     const c = await register();
     lodestone.failNextWith = new LodestoneError("parse_error");
     expect(await verifyCharacter(deps, c.id)).toBe("lodestone_error");
-    expect((await listCharacters(db, alice))[0]!.verified).toBe(false);
+    expect((await listCharacters(db, alice, now))[0]!.verified).toBe(false);
   });
   it("allows only one concurrent verified owner of a Lodestone id", async () => {
     const a = await register();
@@ -248,7 +248,7 @@ describe.skipIf(!url)("characters (PostgreSQL)", () => {
       fakeLodestoneCharacter({ lodestoneId: "1001", selfIntroduction: c.verification!.token }),
     );
     expect(await task).toBe("skipped");
-    expect((await listCharacters(db, alice))[0]).toMatchObject({
+    expect((await listCharacters(db, alice, now))[0]).toMatchObject({
       verified: false,
       verification: replacement.verification,
       verificationError: null,
@@ -281,7 +281,7 @@ describe.skipIf(!url)("characters (PostgreSQL)", () => {
       },
     };
     expect(await verifyCharacter({ ...deps, lodestone: source }, c.id)).toBe("skipped");
-    expect(await listCharacters(db, alice)).toEqual([]);
+    expect(await listCharacters(db, alice, now)).toEqual([]);
   });
   it("never lets another user change a character", async () => {
     const c = await register();
@@ -293,7 +293,7 @@ describe.skipIf(!url)("characters (PostgreSQL)", () => {
     await register();
     const second = await register(alice, "1002");
     await setPrimaryCharacter(db, alice, second.id);
-    expect((await listCharacters(db, alice)).map((c) => c.isPrimary)).toEqual([false, true]);
+    expect((await listCharacters(db, alice, now)).map((c) => c.isPrimary)).toEqual([false, true]);
   });
   it("keeps one primary under concurrent switches", async () => {
     const first = await register();
@@ -302,13 +302,15 @@ describe.skipIf(!url)("characters (PostgreSQL)", () => {
       setPrimaryCharacter(db, alice, first.id),
       setPrimaryCharacter(db, alice, second.id),
     ]);
-    expect((await listCharacters(db, alice)).filter((c) => c.isPrimary)).toHaveLength(1);
+    expect((await listCharacters(db, alice, now)).filter((c) => c.isPrimary)).toHaveLength(1);
   });
   it("promotes the oldest remaining character after deleting the primary", async () => {
     const first = await register();
     const second = await register(alice, "1002");
     await deleteCharacter(db, alice, first.id);
-    expect(await listCharacters(db, alice)).toMatchObject([{ id: second.id, isPrimary: true }]);
+    expect(await listCharacters(db, alice, now)).toMatchObject([
+      { id: second.id, isPrimary: true },
+    ]);
   });
   it("rejects manual sync of an unverified character", async () => {
     const c = await register();
@@ -368,7 +370,7 @@ describe.skipIf(!url)("characters (PostgreSQL)", () => {
     );
     now = new Date(now.getTime() + 86_400_000);
     expect(await syncCharacter(deps, c.id)).toBe("synced");
-    expect((await listCharacters(db, alice))[0]).toMatchObject({
+    expect((await listCharacters(db, alice, now))[0]).toMatchObject({
       name: "Test Renamed",
       world: "Bahamut",
       verified: true,
@@ -381,7 +383,7 @@ describe.skipIf(!url)("characters (PostgreSQL)", () => {
       lodestone.failNextWith = new LodestoneError("parse_error");
       expect(await syncCharacter(deps, c.id)).toBe("failed");
     }
-    expect((await listCharacters(db, alice))[0]).toMatchObject({
+    expect((await listCharacters(db, alice, now))[0]).toMatchObject({
       verified: true,
       syncError: "parse_error",
     });
