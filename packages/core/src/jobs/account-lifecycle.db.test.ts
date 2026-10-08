@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { MemoryStorage } from "@lumorphia/storage";
 import { createDatabase, eq, schema } from "@lumorphia-accounts/db";
 import {
@@ -16,6 +16,11 @@ describe.skipIf(!url)("account outbox delivery (PostgreSQL)", () => {
   });
   afterAll(async () => {
     await database?.close();
+  });
+  // 専用の DB は次の実行にも残る。前の実行で送れなかった知らせが溜まると、
+  // 古い順に 20 件ずつ送る配送がこのテストの知らせまで届かない
+  beforeEach(async () => {
+    await database.db.delete(schema.accountEvents);
   });
   async function event(revision = 1, sub = randomUUID(), clientId = `test-${randomUUID()}`) {
     const [row] = await database.db
