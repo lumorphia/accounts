@@ -99,7 +99,11 @@ const migrationProvider = {
 }
 ```
 
-`handleChoice` は旧 handle を使う `legacy`、現在の Lumorphia handle を使う `current`。旧 handle の採用は通常の変更待機中でも一度だけ行える。実際に handle を変更した場合は通常の30日の変更待機を開始する。現在の handle を保つ場合は待機日時を変えない。応答は `handle` と `alreadyCompleted`。
+`handleChoice` は旧 handle を使う `legacy`、現在の Lumorphia handle を使う `current`。旧 handle の採用は通常の変更待機中でも一度だけ行える。実際に handle を変更した場合は通常の30日の変更待機を開始する。現在の handle を保つ場合は待機日時を変えない。
+
+本文には旧サービスのキャラクターを `characters` で足せる (ADR-0013、40 件まで、Lodestone の ID があるものだけ。項目は `lodestoneId`・`name`・`world`・`dataCenter`・`race`・`clan`・`gender`・`avatarUrl`・`isPrimary`・`verifiedAt`)。accounts は完了と同じトランザクションで取り込む。旧サービスで認証済みなら認証済みのまま (ほかの人が認証済みの Lodestone の ID は未認証)、本人がすでに持っている Lodestone の ID は新しく作らない、本人に主キャラクターが無ければ旧サービスの主を主にする。
+
+応答は `handle`・`alreadyCompleted` と、Lodestone の ID ごとの accounts のキャラクター (`characters`: `lodestoneId`・`id`・`verified`)。送り直しでも同じ対応を返す。
 
 A2 の Prismtone は、先に本人に何を引き継ぐかと handle の選択を確認し、自分の DB の本人照合・一意性・BAN・投稿・お気に入り・キャラクターの処理を確定する。移行結果と accounts への通知要求を同じ RP トランザクションに保存し、commit 後に通知する。失敗した通知は同じ旧 UUID と選択で再送する。accounts では同じ移行先・同じ選択の再送を成功として返し、別の利用者や別の選択は拒否する。
 

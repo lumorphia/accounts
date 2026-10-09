@@ -14,5 +14,6 @@
 | [0010](0010-production-and-legal-consent.md)                | 本番の分離、規約の同意と worker の監視                                              |
 | [0011](0011-explicit-recovery.md)                           | 退会からの復旧は、ログインではなく本人の操作で行う                                  |
 | [0012](0012-service-identity-and-authorize-side-effects.md) | サービスは metadata で見分け、状態の変更は認可の入口で行う                          |
+| [0013](0013-characters-for-services-and-migration.md)       | サービスに未認証のキャラクターも渡し、引き継ぎでキャラクターを取り込む              |
 
 本文中の「prismtone ADR-NNNN」は lumorphia/prismtone の ADR を指す。全体の計画は [plan.md](../plan.md)。
