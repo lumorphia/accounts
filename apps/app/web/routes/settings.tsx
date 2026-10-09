@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { LegacyMigrationGuide } from "../components/legacy-migration-guide.tsx";
 import { AccountLifecycleSettings } from "../components/account-lifecycle-settings.tsx";
 import { CharacterSettings } from "../components/character-settings.tsx";
+import { ReturnToService } from "../components/return-to-service.tsx";
 import type { Route } from "./+types/settings";
 
 type User = {
@@ -62,7 +63,10 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
       "読み込めませんでした",
     );
     if (!me.user) {
-      window.location.assign("/login?next=%2Fsettings");
+      // サービスから移ってきたときの return_to を、ログインのあとも持ち回る
+      window.location.assign(
+        `/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`,
+      );
       return;
     }
     if (me.user.status === "pending") {
@@ -241,6 +245,7 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
   return (
     <main className="mx-auto max-w-2xl space-y-10 p-8">
       <h1 className="text-2xl font-semibold">設定</h1>
+      <ReturnToService />
       {loading ? <p>読み込み中</p> : null}
       {user && (
         <>
