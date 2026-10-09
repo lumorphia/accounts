@@ -167,7 +167,8 @@ export const characterRoutes: FastifyPluginAsyncZod = async (app) => {
         throw new DomainError("forbidden", "account_not_active");
       const characters = await listCharacters(app.db, access.sub);
       // 公開する項目を明示し、所有確認用トークンや運用上のエラーを渡さない。
-      return { characters: characters.filter((c) => c.verified).map((c) => commonSchema.parse(c)) };
+      // 未認証も verified: false で渡し、サービスが印で見分ける (ADR-0013)
+      return { characters: characters.map((c) => commonSchema.parse(c)) };
     },
   );
 };
