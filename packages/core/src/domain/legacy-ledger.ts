@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { and, asc, eq, isNull, schema, sql, type Database } from "@lumorphia-accounts/db";
 import { DomainError } from "./errors.ts";
 import { validateHandle } from "./handle.ts";
+import { MAX_CHARACTERS_PER_USER } from "./characters.ts";
 
 type LegacyIdentity = { providerId: string; accountId: string };
 export type LegacySnapshot = {
@@ -198,12 +199,93 @@ export async function importLegacyLedger(
     return { imported: snapshot.accounts.length, repeated: false };
   });
 }
+/** 旧サービスから引き継ぎの完了と一緒に届くキャラクター。Lodestone の ID があるものだけ (ADR-0013) */
+export type LegacyCharacter = {
+  lodestoneId: string;
+  name: string;
+  world: string;
+  dataCenter: string;
+  race: string | null;
+  clan: string | null;
+  gender: string | null;
+  avatarUrl: string | null;
+  isPrimary: boolean;
+  /** 旧サービスで認証した時刻。認証していなければ null */
+  verifiedAt: string | null;
+};
+export type ImportedCharacter = { lodestoneId: string; id: string; verified: boolean };
+
+/**
+ * 旧サービスのキャラクターを取り込み、Lodestone の ID ごとの accounts のキャラクターを返す。
+ * 本人がすでに持っている Lodestone の ID は作らずそれを使うので、送り直しても重ならない。
+ * ほかの人が認証済みの Lodestone の ID は未認証で取り込む。本人に主キャラクターが無ければ旧サービスの主を主にする
+ */
+async function importLegacyCharacters(
+  tx: Database,
+  userId: string,
+  characters: readonly LegacyCharacter[],
+): Promise<ImportedCharacter[]> {
+  if (characters.length === 0) return [];
+  const existing = await tx.query.characters.findMany({
+    where: eq(schema.characters.userId, userId),
+  });
+  const known = new Map(existing.map((c) => [c.lodestoneId, c]));
+  const added = characters.filter((c) => !known.has(c.lodestoneId));
+  if (existing.length + added.length > MAX_CHARACTERS_PER_USER)
+    fail("validation", "too_many_characters");
+  let hasPrimary = existing.some((c) => c.isPrimary);
+  const imported: ImportedCharacter[] = [];
+  for (const c of characters) {
+    const mine = known.get(c.lodestoneId);
+    if (mine) {
+      imported.push({
+        lodestoneId: c.lodestoneId,
+        id: mine.id,
+        verified: mine.verifiedAt !== null,
+      });
+      continue;
+    }
+    const takenByOther =
+      c.verifiedAt !== null &&
+      (await tx.query.characters.findFirst({
+        columns: { id: true },
+        where: and(
+          eq(schema.characters.lodestoneId, c.lodestoneId),
+          sql`${schema.characters.verifiedAt} is not null`,
+        ),
+      })) !== undefined;
+    const verifiedAt = c.verifiedAt !== null && !takenByOther ? new Date(c.verifiedAt) : null;
+    const isPrimary = c.isPrimary && !hasPrimary;
+    if (isPrimary) hasPrimary = true;
+    const [row] = await tx
+      .insert(schema.characters)
+      .values({
+        userId,
+        lodestoneId: c.lodestoneId,
+        name: c.name,
+        world: c.world,
+        dataCenter: c.dataCenter,
+        race: c.race,
+        clan: c.clan,
+        gender: c.gender,
+        avatarUrl: c.avatarUrl,
+        isPrimary,
+        verifiedAt,
+      })
+      .returning({ id: schema.characters.id });
+    known.set(c.lodestoneId, { ...row!, verifiedAt } as (typeof existing)[number]);
+    imported.push({ lodestoneId: c.lodestoneId, id: row!.id, verified: verifiedAt !== null });
+  }
+  return imported;
+}
+
 export async function completeLegacyMigration(
   db: Database,
   userId: string,
   legacyUserId: string,
   handleChoice: "legacy" | "current",
   now = new Date(),
+  characters: readonly LegacyCharacter[] = [],
 ) {
   if (!["legacy", "current"].includes(handleChoice)) fail("validation", "invalid_handle_choice");
   return withLegacyHandleLock(db, async (tx) => {
@@ -223,7 +305,11 @@ export async function completeLegacyMigration(
     if (row.migratedAt) {
       if (row.migratedTo !== userId || row.handleChoice !== handleChoice)
         fail("conflict", "legacy_account_already_migrated");
-      return { handle: user.handle, alreadyCompleted: true };
+      return {
+        handle: user.handle,
+        alreadyCompleted: true,
+        characters: await importLegacyCharacters(tx, userId, characters),
+      };
     }
     if (!(await matchingAccounts(tx, userId)).some(({ legacy }) => legacy.id === row.id))
       fail("forbidden", "legacy_identity_required");
@@ -250,7 +336,11 @@ export async function completeLegacyMigration(
       .update(schema.legacyAccounts)
       .set({ migratedAt: now, migratedTo: userId, handleChoice })
       .where(eq(schema.legacyAccounts.id, row.id));
-    return { handle, alreadyCompleted: false };
+    return {
+      handle,
+      alreadyCompleted: false,
+      characters: await importLegacyCharacters(tx, userId, characters),
+    };
   });
 }
 /** 旧サービスの物理削除を運営者が確認したあとに呼ぶ。復旧期間中には解放しない。 */

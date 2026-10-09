@@ -7,6 +7,7 @@ import {
   listLegacyPending,
   completeLegacyMigration,
   releaseLegacyAccount,
+  type LegacyCharacter,
 } from "./legacy-ledger.ts";
 const url = process.env.DATABASE_URL;
 describe.skipIf(!url)("legacy account ledger (PostgreSQL)", () => {
@@ -234,5 +235,167 @@ describe.skipIf(!url)("legacy account ledger (PostgreSQL)", () => {
     await expect(
       completeLegacyMigration(database.db, owner.id, b.legacyUserId, "current"),
     ).rejects.toMatchObject({ code: "conflict" });
+  });
+
+  describe("characters on completion (ADR-0013)", () => {
+    const lodestoneId = () => String(100_000_000 + Math.floor(Math.random() * 800_000_000));
+    const character = (overrides: Partial<LegacyCharacter> = {}): LegacyCharacter => ({
+      lodestoneId: lodestoneId(),
+      name: "Test Character",
+      world: "Tiamat",
+      dataCenter: "Mana",
+      race: null,
+      clan: null,
+      gender: null,
+      avatarUrl: null,
+      isPrimary: false,
+      verifiedAt: null,
+      ...overrides,
+    });
+    async function ready() {
+      const a = record();
+      await importLegacyLedger(database.db, { service: "prismtone", accounts: [a] });
+      const owner = await user(a.identities[0]);
+      return { a, owner };
+    }
+    const charactersOf = (userId: string) =>
+      database.db.query.characters.findMany({ where: eq(schema.characters.userId, userId) });
+
+    it("imports the old characters and keeps them verified", async () => {
+      const { a, owner } = await ready();
+      const verified = character({ verifiedAt: "2026-10-01T00:00:00.000Z", isPrimary: true });
+      const plain = character();
+      const result = await completeLegacyMigration(
+        database.db,
+        owner.id,
+        a.legacyUserId,
+        "current",
+        new Date(),
+        [verified, plain],
+      );
+      const rows = await charactersOf(owner.id);
+      expect(rows).toHaveLength(2);
+      expect(result.characters).toEqual(
+        expect.arrayContaining([
+          { lodestoneId: verified.lodestoneId, id: expect.any(String), verified: true },
+          { lodestoneId: plain.lodestoneId, id: expect.any(String), verified: false },
+        ]),
+      );
+      expect(rows.find((r) => r.lodestoneId === verified.lodestoneId)).toMatchObject({
+        isPrimary: true,
+        verifiedAt: new Date("2026-10-01T00:00:00.000Z"),
+      });
+    });
+
+    it("imports a character verified by someone else as unverified", async () => {
+      const { a, owner } = await ready();
+      const other = await user();
+      const shared = character({ verifiedAt: "2026-10-01T00:00:00.000Z" });
+      await database.db.insert(schema.characters).values({
+        userId: other.id,
+        lodestoneId: shared.lodestoneId,
+        name: "Test Other",
+        world: "Tiamat",
+        dataCenter: "Mana",
+        verifiedAt: new Date(),
+      });
+      const result = await completeLegacyMigration(
+        database.db,
+        owner.id,
+        a.legacyUserId,
+        "current",
+        new Date(),
+        [shared],
+      );
+      expect(result.characters).toEqual([
+        { lodestoneId: shared.lodestoneId, id: expect.any(String), verified: false },
+      ]);
+    });
+
+    it("reuses a character the person already has in Lumorphia", async () => {
+      const { a, owner } = await ready();
+      const same = character();
+      const [existing] = await database.db
+        .insert(schema.characters)
+        .values({
+          userId: owner.id,
+          lodestoneId: same.lodestoneId,
+          name: "Test Existing",
+          world: "Tiamat",
+          dataCenter: "Mana",
+        })
+        .returning();
+      const result = await completeLegacyMigration(
+        database.db,
+        owner.id,
+        a.legacyUserId,
+        "current",
+        new Date(),
+        [same],
+      );
+      expect(result.characters).toEqual([
+        { lodestoneId: same.lodestoneId, id: existing!.id, verified: false },
+      ]);
+      expect(await charactersOf(owner.id)).toHaveLength(1);
+    });
+
+    it("keeps the person's primary character in Lumorphia", async () => {
+      const { a, owner } = await ready();
+      const [primary] = await database.db
+        .insert(schema.characters)
+        .values({
+          userId: owner.id,
+          lodestoneId: lodestoneId(),
+          name: "Test Primary",
+          world: "Tiamat",
+          dataCenter: "Mana",
+          isPrimary: true,
+        })
+        .returning();
+      await completeLegacyMigration(database.db, owner.id, a.legacyUserId, "current", new Date(), [
+        character({ isPrimary: true }),
+      ]);
+      const rows = await charactersOf(owner.id);
+      expect(rows.filter((r) => r.isPrimary).map((r) => r.id)).toEqual([primary!.id]);
+    });
+
+    it("returns the same characters when the notice is sent again", async () => {
+      const { a, owner } = await ready();
+      const items = [character({ verifiedAt: "2026-10-01T00:00:00.000Z" }), character()];
+      const first = await completeLegacyMigration(
+        database.db,
+        owner.id,
+        a.legacyUserId,
+        "current",
+        new Date(),
+        items,
+      );
+      const again = await completeLegacyMigration(
+        database.db,
+        owner.id,
+        a.legacyUserId,
+        "current",
+        new Date(),
+        items,
+      );
+      expect(again).toMatchObject({ alreadyCompleted: true });
+      expect(again.characters).toEqual(expect.arrayContaining(first.characters));
+      expect(await charactersOf(owner.id)).toHaveLength(2);
+    });
+
+    it("refuses more characters than one person can have", async () => {
+      const { a, owner } = await ready();
+      await expect(
+        completeLegacyMigration(
+          database.db,
+          owner.id,
+          a.legacyUserId,
+          "current",
+          new Date(),
+          Array.from({ length: 41 }, () => character()),
+        ),
+      ).rejects.toMatchObject({ code: "validation" });
+      expect(await charactersOf(owner.id)).toHaveLength(0);
+    });
   });
 });
