@@ -30,7 +30,7 @@ API と worker の HTTP 試行は `public.lodestone_pacing` の 1 行を共有�
 | `PUT /api/me/characters/:id/primary` | 主キャラクターを変更                                  |
 | `DELETE /api/me/characters/:id`      | 登録を解除                                            |
 
-サービスは認可時に `lumorphia:characters` を要求し、本人の access token を `Authorization: Bearer ...` で `GET /api/characters` に渡す。クエリで利用者 ID を指定する入口はない。確認済みの一覧だけを返し、トークン・自己紹介・内部エラーは返さない。一覧の取得は Lodestone へ接続しない。Cookie や ID トークンでは読み取れない。
+サービスは認可時に `lumorphia:characters` を要求し、本人の access token を `Authorization: Bearer ...` で `GET /api/characters` に渡す。クエリで利用者 ID を指定する入口はない。未確認のキャラクターも `verified: false` で返す (ADR-0013)。サービスは印で見分けて表示する。トークン・自己紹介・内部エラーは返さない。一覧の取得は Lodestone へ接続しない。Cookie や ID トークンでは読み取れない。
 
 登録済みサービスでも scope が無ければ 403。無効・失効済みの access token は 401、現在の利用者が active でなければ 403。`Cache-Control: no-store` を返す。既存クライアントに権限を自動追加しないので、運営者が必要なクライアントだけに scope を追加するか、登録スクリプトで新しく登録して利用側を切り替える。
 
