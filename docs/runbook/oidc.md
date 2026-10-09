@@ -76,3 +76,7 @@ EdDSA (Ed25519)。秘密鍵は `AUTH_SECRET` で保護され、DB に暗号化�
 サービス側のセッションを消す受け口と Logout Token の検証は、次の `@lumorphia/auth-client` で実装する。
 
 退会と復旧の通知先は `lifecycleUri`。登録と再送の手順は [退会 runbook](account-deletion.md)。
+
+## 設定画面からサービスへ戻る
+
+サービスの設定から accounts の設定へ移るときは、`/settings?return_to=<サービスの URL>` で開く (prismtone ADR-0052)。設定画面は `GET /api/return-target` で戻り先を確かめ、登録したサービスのクライアント (`metadata.lumorphia_service` があり、止めていないもの) の redirect URI と同じ origin の https の URL のときだけ「<サービス名> に戻る」を出す。ほかの URL では何も出さない (オープンリダイレクトを作らない)。戻り先はタブの sessionStorage にも覚えるので、連携やログインで設定画面の外へ出ても失わない。
