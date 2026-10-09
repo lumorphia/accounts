@@ -16,6 +16,7 @@ import type { ObjectStorage } from "@lumorphia/storage";
 import { authPlugin, type AuthPluginOptions } from "./plugins/auth.ts";
 import { characterPlugin, type CharacterPluginOptions } from "./plugins/characters.ts";
 import { accountLifecycleRoutes } from "./routes/account-lifecycle.ts";
+import { returnTargetRoutes } from "./routes/return-target.ts";
 import { characterRoutes } from "./routes/characters.ts";
 import { legacyLedgerRoutes } from "./routes/legacy-ledger.ts";
 import { meRoutes } from "./routes/me.ts";
@@ -110,6 +111,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
         await api.register(legacyLedgerRoutes);
         await api.register(characterRoutes);
         await api.register(accountLifecycleRoutes);
+        await api.register(returnTargetRoutes);
       }
       if (!opts.skipDb && env.NODE_ENV !== "production") {
         api.get("/media/*", { schema: { hide: true } }, async (req, reply) => {
