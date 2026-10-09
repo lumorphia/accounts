@@ -105,7 +105,10 @@ describe.skipIf(!url)("legacy ledger HTTP (PostgreSQL)", () => {
     expect(token.statusCode, token.body).toBe(200);
     return token.json() as { access_token: string; id_token: string };
   }
-  const complete = (token?: string, payload = { legacyUserId: legacyId, handleChoice: "legacy" }) =>
+  const complete = (
+    token?: string,
+    payload: object = { legacyUserId: legacyId, handleChoice: "legacy" },
+  ) =>
     app.inject({
       method: "POST",
       url: path,
@@ -183,14 +186,62 @@ describe.skipIf(!url)("legacy ledger HTTP (PostgreSQL)", () => {
     });
     expect(res.statusCode).toBe(400);
   });
+  it("refuses characters without a valid Lodestone ID", async () => {
+    const tokens = await mint();
+    const res = await complete(tokens.access_token, {
+      legacyUserId: legacyId,
+      handleChoice: "legacy",
+      characters: [
+        {
+          lodestoneId: "not-a-number",
+          name: "Test Character",
+          world: "Tiamat",
+          dataCenter: "Mana",
+          race: null,
+          clan: null,
+          gender: null,
+          avatarUrl: null,
+          isPrimary: false,
+          verifiedAt: null,
+        },
+      ],
+    });
+    expect(res.statusCode).toBe(400);
+  });
   it("records matching migration idempotently and updates current UserInfo immediately", async () => {
     const tokens = await mint();
-    const result = await complete(tokens.access_token);
+    // 旧サービスのキャラクターも一緒に取り込む (ADR-0013)。専用 DB は次の実行にも残るので、
+    // Lodestone の ID は実行ごとに変える (前の実行の認証済みとぶつけない)
+    const lodestoneId = String(100_000_000 + Math.floor(Math.random() * 800_000_000));
+    const payload = {
+      legacyUserId: legacyId,
+      handleChoice: "legacy",
+      characters: [
+        {
+          lodestoneId,
+          name: "Test Character",
+          world: "Tiamat",
+          dataCenter: "Mana",
+          race: null,
+          clan: null,
+          gender: null,
+          avatarUrl: null,
+          isPrimary: true,
+          verifiedAt: "2026-10-01T00:00:00.000Z",
+        },
+      ],
+    };
+    const result = await complete(tokens.access_token, payload);
     expect(result.statusCode, result.body).toBe(200);
-    expect(result.json()).toEqual({ handle: oldHandle, alreadyCompleted: false });
-    expect((await complete(tokens.access_token)).json()).toEqual({
+    expect(result.json()).toEqual({
+      handle: oldHandle,
+      alreadyCompleted: false,
+      characters: [{ lodestoneId, id: expect.any(String), verified: true }],
+    });
+    expect((await complete(tokens.access_token, payload)).json()).toEqual({
       handle: oldHandle,
       alreadyCompleted: true,
+      characters: result.json().characters,
     });
     const info = await app.inject({
       method: "GET",

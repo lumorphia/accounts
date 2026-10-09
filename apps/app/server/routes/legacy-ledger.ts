@@ -1,8 +1,28 @@
 import { z } from "zod";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
-import { completeLegacyMigration, listLegacyPending } from "@lumorphia-accounts/core";
+import {
+  completeLegacyMigration,
+  listLegacyPending,
+  MAX_CHARACTERS_PER_USER,
+} from "@lumorphia-accounts/core";
 import { withErrors } from "../schemas/error.ts";
 import { requireServiceAccess } from "../auth/service-access.ts";
+
+const text = (max: number) => z.string().trim().min(1).max(max);
+const legacyCharacterSchema = z
+  .object({
+    lodestoneId: z.string().regex(/^[1-9][0-9]{0,11}$/),
+    name: text(40),
+    world: text(40),
+    dataCenter: text(40),
+    race: text(40).nullable(),
+    clan: text(40).nullable(),
+    gender: text(20).nullable(),
+    avatarUrl: z.string().url().max(500).nullable(),
+    isPrimary: z.boolean(),
+    verifiedAt: z.string().datetime().nullable(),
+  })
+  .strict();
 
 export const legacyLedgerRoutes: FastifyPluginAsyncZod = async (app) => {
   app.addHook("onSend", async (req, reply) => {
@@ -40,10 +60,21 @@ export const legacyLedgerRoutes: FastifyPluginAsyncZod = async (app) => {
       config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
       schema: {
         body: z
-          .object({ legacyUserId: z.string().uuid(), handleChoice: z.enum(["legacy", "current"]) })
+          .object({
+            legacyUserId: z.string().uuid(),
+            handleChoice: z.enum(["legacy", "current"]),
+            // 旧サービスのキャラクター。Lodestone の ID があるものだけ (ADR-0013)
+            characters: z.array(legacyCharacterSchema).max(MAX_CHARACTERS_PER_USER).default([]),
+          })
           .strict(),
         response: withErrors({
-          200: z.object({ handle: z.string(), alreadyCompleted: z.boolean() }),
+          200: z.object({
+            handle: z.string(),
+            alreadyCompleted: z.boolean(),
+            characters: z.array(
+              z.object({ lodestoneId: z.string(), id: z.string().uuid(), verified: z.boolean() }),
+            ),
+          }),
         }),
       },
     },
@@ -59,6 +90,8 @@ export const legacyLedgerRoutes: FastifyPluginAsyncZod = async (app) => {
         access.sub,
         req.body.legacyUserId,
         req.body.handleChoice,
+        new Date(),
+        req.body.characters,
       );
     },
   );
