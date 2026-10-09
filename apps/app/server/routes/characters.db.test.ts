@@ -201,7 +201,7 @@ describe.skipIf(!databaseUrl)("character routes (PostgreSQL)", () => {
     expect(jobs.jobs.at(-1)).toMatchObject({ name: "character-sync", data: { characterId } });
     expect((await call("POST", `/${characterId}/sync`)).statusCode).toBe(429);
   });
-  it("lists only verified characters with an explicit service scope and no private fields", async () => {
+  it("lists verified and unverified characters with an explicit service scope and no private fields", async () => {
     expect((await call("POST", "", { name: "Test Character", world: "Tiamat" })).statusCode).toBe(
       201,
     );
@@ -209,12 +209,14 @@ describe.skipIf(!databaseUrl)("character routes (PostgreSQL)", () => {
     const res = await service(accessToken);
     expect(res.statusCode, res.body).toBe(200);
     expect(res.headers["cache-control"]).toBe("no-store");
-    expect(res.json().characters).toHaveLength(1);
-    expect(res.json().characters[0]).toMatchObject({
-      id: characterId,
-      lodestoneId: "15022394",
-      verified: true,
-    });
+    // 未認証のキャラクターも verified: false で渡す (ADR-0013)
+    expect(res.json().characters).toHaveLength(2);
+    expect(res.json().characters).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: characterId, lodestoneId: "15022394", verified: true }),
+        expect.objectContaining({ verified: false }),
+      ]),
+    );
     expect(Object.keys(res.json().characters[0]).sort()).toEqual(
       [
         "avatarUrl",
