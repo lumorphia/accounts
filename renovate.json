@@ -1,38 +1,4 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended", ":timezone(Asia/Tokyo)", "schedule:weekly"],
-  "baseBranchPatterns": ["develop"],
-  "labels": ["dependencies"],
-  "rangeStrategy": "bump",
-  "minimumReleaseAge": "1 day",
-  "updateNotScheduled": false,
-  "postUpdateOptions": ["pnpmDedupe"],
-  "packageRules": [
-    {
-      "description": "開発依存と本番依存の minor / patch は 1 本の PR にまとめる",
-      "matchDepTypes": ["dependencies", "devDependencies"],
-      "groupName": "dependencies (minor, patch)",
-      "matchUpdateTypes": ["minor", "patch"]
-    },
-    {
-      "description": "メジャーは個別に。破壊的変更を 1 つずつ見る",
-      "matchUpdateTypes": ["major"],
-      "dependencyDashboardApproval": true
-    },
-    {
-      "description": "Node の版は ci.yml と engines を 1 本の PR でそろえて上げる",
-      "matchDepNames": ["node"],
-      "groupName": "node"
-    },
-    {
-      "description": "GitHub Actions もまとめる",
-      "matchManagers": ["github-actions"],
-      "groupName": "github actions"
-    }
-  ],
-  "vulnerabilityAlerts": {
-    "enabled": true,
-    "labels": ["security"]
-  },
-  "prConcurrentLimit": 3
+  "extends": ["local>lumorphia/platform//renovate/default"]
 }
