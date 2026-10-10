@@ -351,67 +351,83 @@ export function CharacterSettings() {
         }}
       >
         <h3 className="font-medium">キャラクターを追加</h3>
-        <fieldset className="flex flex-wrap gap-4" disabled={busy || !enabled}>
-          <legend className="sr-only">登録方法</legend>
-          <label className="text-sm">
-            <input
-              type="radio"
-              name="character-mode"
-              checked={mode === "url"}
-              onChange={() => setMode("url")}
-            />{" "}
-            URL または ID で登録
-          </label>
-          <label className="text-sm">
-            <input
-              type="radio"
-              name="character-mode"
-              checked={mode === "search"}
-              onChange={() => setMode("search")}
-            />{" "}
-            名前とワールドで検索
-          </label>
-        </fieldset>
-        {mode === "url" ? (
-          <label className="block text-sm">
-            Lodestone の URL または ID
-            <input
-              value={lodestone}
-              onChange={(event) => setLodestone(event.target.value)}
-              maxLength={512}
-              required
+        <div className="character-method-tabs" role="tablist" aria-label="登録方法">
+          {(["url", "search"] as const).map((method) => (
+            <button
+              key={method}
+              id={`character-method-${method}`}
+              type="button"
+              role="tab"
+              aria-selected={mode === method}
+              aria-controls="character-registration-panel"
+              tabIndex={mode === method ? 0 : -1}
               disabled={busy || !enabled}
-              className={inputClass}
-            />
-          </label>
-        ) : (
-          <>
+              onClick={() => setMode(method)}
+              onKeyDown={(event) => {
+                let next: string;
+                if (event.key === "Home") next = "url";
+                else if (event.key === "End") next = "search";
+                else if (event.key === "ArrowLeft" || event.key === "ArrowRight")
+                  next = method === "url" ? "search" : "url";
+                else return;
+                event.preventDefault();
+                setMode(next);
+                document.getElementById(`character-method-${next}`)?.focus();
+              }}
+            >
+              {method === "url" ? "URL・ID" : "名前・ワールド"}
+            </button>
+          ))}
+        </div>
+        <div
+          id="character-registration-panel"
+          role="tabpanel"
+          aria-labelledby={`character-method-${mode}`}
+          className="space-y-3"
+          tabIndex={0}
+        >
+          {mode === "url" ? (
             <label className="block text-sm">
-              キャラクター名
+              Lodestone の URL または ID
               <input
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                maxLength={40}
+                value={lodestone}
+                onChange={(event) => setLodestone(event.target.value)}
+                maxLength={512}
+                placeholder="例：https://jp.finalfantasyxiv.com/lodestone/character/15022394/"
                 required
                 disabled={busy || !enabled}
                 className={inputClass}
               />
             </label>
-            <label className="block text-sm">
-              ワールド
-              <input
-                value={world}
-                onChange={(event) => setWorld(event.target.value)}
-                maxLength={40}
-                pattern="[A-Za-z]+"
-                required
-                disabled={busy || !enabled}
-                className={inputClass}
-                placeholder="Tiamat"
-              />
-            </label>
-          </>
-        )}
+          ) : (
+            <>
+              <label className="block text-sm">
+                キャラクター名
+                <input
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  maxLength={40}
+                  required
+                  disabled={busy || !enabled}
+                  className={inputClass}
+                />
+              </label>
+              <label className="block text-sm">
+                ワールド
+                <input
+                  value={world}
+                  onChange={(event) => setWorld(event.target.value)}
+                  maxLength={40}
+                  pattern="[A-Za-z]+"
+                  required
+                  disabled={busy || !enabled}
+                  className={inputClass}
+                  placeholder="Tiamat"
+                />
+              </label>
+            </>
+          )}
+        </div>
         <p className="text-xs text-ink-muted">最大 40 件登録できます。</p>
         <button
           type="submit"

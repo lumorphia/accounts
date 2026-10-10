@@ -1,3 +1,4 @@
+import { ProviderIcon } from "../components/provider-icon.tsx";
 import { useState } from "react";
 import { useSearchParams } from "react-router";
 import { loginNext } from "../auth/login-next.ts";
@@ -16,7 +17,10 @@ export function meta() {
 export function loader() {
   return {
     providers: providers.filter(({ id }) =>
-      Boolean(process.env[`AUTH_${id === "twitter" ? "X" : id.toUpperCase()}_ID`]),
+      Boolean(
+        process.env[`AUTH_${id === "twitter" ? "X" : id.toUpperCase()}_ID`] &&
+        process.env[`AUTH_${id === "twitter" ? "X" : id.toUpperCase()}_SECRET`],
+      ),
     ),
     devLogin: process.env.NODE_ENV !== "production",
   };
@@ -89,115 +93,149 @@ export default function Login({ loaderData }: Route.ComponentProps) {
   }
 
   return (
-    <main className="mx-auto max-w-sm space-y-6 p-8">
-      <h1 className="text-2xl font-semibold">Lumorphia にログイン</h1>
-      {params.get("deleted") === "1" && (
-        <p role="status" className="text-sm">
-          退会を受け付けました。30
-          日以内なら、同じアカウントでログインして「復旧する」を選ぶと戻せます。画像は戻りません。
+    <main id="main" className="login-stage">
+      <div className="intro">
+        <div className="eyebrow">LUMORPHIA ACCOUNT</div>
+        <h1>
+          いつもの自分で、
+          <br />
+          それぞれの場所へ。
+        </h1>
+        <p>
+          ひとつのアカウントで、
+          <br />
+          PrismtoneやScenoteを利用できます。
         </p>
-      )}
-      <p className="text-sm text-ink-muted">Lumorphia アカウントでサービスにログインできます。</p>
-      <div className="space-y-2">
-        {loaderData.providers.map(({ id, label }) => (
-          <button
-            key={id}
-            type="button"
-            disabled={busy}
-            onClick={() => void social(id)}
-            className="block w-full rounded border border-line p-3 text-left hover:bg-surface-hover disabled:opacity-50"
-          >
-            {label} でログイン
-          </button>
-        ))}
+        <div className="intro-art" aria-hidden="true">
+          <div className="intro-visual">
+            <div className="intro-glow" />
+            <img src="/brand/lumorphia-logo.png" width="1983" height="793" alt="" />
+          </div>
+        </div>
+        <div className="services" aria-label="Lumorphia のサービス">
+          <span className="prismtone-mini">
+            <img className="logo-light" src="/brand/prismtone-light-wordmark.svg" alt="Prismtone" />
+            <img
+              className="logo-dark"
+              src="/brand/prismtone-dark-wordmark.svg"
+              alt=""
+              aria-hidden="true"
+            />
+          </span>
+          <span>Scenote</span>
+        </div>
       </div>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          void federated("miauth", misskeyHost);
-        }}
-        className="space-y-2"
-      >
-        <label htmlFor="misskey-host" className="block text-sm">
-          Misskey のサーバー
-        </label>
-        <div className="flex gap-2">
-          <input
-            id="misskey-host"
-            value={misskeyHost}
-            onChange={(event) => setMisskeyHost(event.target.value)}
-            placeholder="misskey.io"
-            required
-            className="min-w-0 flex-1 rounded border border-line bg-surface-raised p-2"
-          />
-          <button
-            type="submit"
-            disabled={busy}
-            className="rounded border border-line px-3 disabled:opacity-50"
-            data-testid="misskey-submit"
-          >
-            Misskey でログイン
-          </button>
-        </div>
-      </form>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          void federated("mastodon", mastodonHost);
-        }}
-        className="space-y-2"
-      >
-        <label htmlFor="mastodon-host" className="block text-sm">
-          Mastodon のサーバー
-        </label>
-        <div className="flex gap-2">
-          <input
-            id="mastodon-host"
-            value={mastodonHost}
-            onChange={(event) => setMastodonHost(event.target.value)}
-            placeholder="mstdn.jp"
-            required
-            className="min-w-0 flex-1 rounded border border-line bg-surface-raised p-2"
-          />
-          <button
-            type="submit"
-            disabled={busy}
-            className="rounded border border-line px-3 disabled:opacity-50"
-            data-testid="mastodon-submit"
-          >
-            Mastodon でログイン
-          </button>
-        </div>
-      </form>
-      {loaderData.devLogin && (
-        <form
-          onSubmit={(event) => void dev(event)}
-          className="space-y-3 rounded border border-line p-4"
-          data-testid="dev-login"
-        >
-          <label htmlFor="dev-handle" className="block text-sm">
-            開発用ログイン
-          </label>
-          <input
-            id="dev-handle"
-            value={handle}
-            onChange={(event) => setHandle(event.target.value)}
-            className="w-full rounded border border-line bg-surface-raised p-2"
-          />
-          <button
-            type="submit"
-            disabled={busy}
-            className="rounded bg-accent px-4 py-2 text-accent-ink disabled:opacity-50"
-          >
-            ログイン
-          </button>
-        </form>
-      )}
-      {error && (
-        <p role="alert" className="text-sm text-red-700">
-          {error}
+      <section className="panel login-panel" aria-labelledby="login-title">
+        <h2 id="login-title">Lumorphia にログイン</h2>
+        <p className="sub">ログインに使うアカウントを選んでください。</p>
+        {params.get("deleted") === "1" && (
+          <p role="status" className="notice">
+            退会を受け付けました。30日以内なら、同じアカウントでログインして「復旧する」を選ぶと戻せます。画像は戻りません。
+          </p>
+        )}
+        <p className="destination">
+          {next.startsWith("/api/auth/oauth2/authorize?")
+            ? "サービスへのログインを続けます。"
+            : next.startsWith("/settings")
+              ? "ログイン後はアカウント管理へ進みます。"
+              : "ログイン後は Lumorphia のトップページに戻ります。"}
         </p>
-      )}
+        <div className="providers">
+          {loaderData.providers.map(({ id, label }) => (
+            <button
+              key={id}
+              type="button"
+              disabled={busy}
+              onClick={() => void social(id)}
+              className="provider"
+            >
+              <ProviderIcon provider={id} />
+              {label} でログイン
+            </button>
+          ))}
+        </div>
+        <details>
+          <summary>Misskey・Mastodon でログイン</summary>
+          <div className="federated">
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                void federated("miauth", misskeyHost);
+              }}
+            >
+              <label htmlFor="misskey-host">Misskey のサーバー</label>
+              <div className="federated-row">
+                <input
+                  id="misskey-host"
+                  value={misskeyHost}
+                  onChange={(event) => setMisskeyHost(event.target.value)}
+                  placeholder="misskey.io"
+                  required
+                />
+                <button
+                  type="submit"
+                  className="secondary"
+                  disabled={busy}
+                  data-testid="misskey-submit"
+                >
+                  Misskey でログイン
+                </button>
+              </div>
+            </form>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                void federated("mastodon", mastodonHost);
+              }}
+            >
+              <label htmlFor="mastodon-host">Mastodon のサーバー</label>
+              <div className="federated-row">
+                <input
+                  id="mastodon-host"
+                  value={mastodonHost}
+                  onChange={(event) => setMastodonHost(event.target.value)}
+                  placeholder="mstdn.jp"
+                  required
+                />
+                <button
+                  type="submit"
+                  className="secondary"
+                  disabled={busy}
+                  data-testid="mastodon-submit"
+                >
+                  Mastodon でログイン
+                </button>
+              </div>
+            </form>
+          </div>
+        </details>
+        <p className="agreement">
+          初めての方も、同じ方法で始められます。
+          <br />
+          登録時に利用規約とプライバシーポリシーをご確認いただきます。
+        </p>
+        {loaderData.devLogin && (
+          <details className="dev-login" open>
+            <summary>開発用ログイン</summary>
+            <form onSubmit={(event) => void dev(event)} className="field" data-testid="dev-login">
+              <label htmlFor="dev-handle">開発用ログイン</label>
+              <input
+                id="dev-handle"
+                value={handle}
+                onChange={(event) => setHandle(event.target.value)}
+              />
+              <button type="submit" disabled={busy} className="secondary">
+                ログイン
+              </button>
+            </form>
+          </details>
+        )}
+        {error && (
+          <p role="alert" className="form-error">
+            {error}
+          </p>
+        )}
+      </section>
     </main>
   );
 }

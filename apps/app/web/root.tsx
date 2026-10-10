@@ -10,12 +10,14 @@ import {
 } from "react-router";
 import type { Route } from "./+types/root";
 import "./app.css";
+import { BrandHeader } from "./components/brand-header.tsx";
 
-/** 全ルート共通。A1.0 は版と Sentry の設定だけ。ログイン状態は A1.1 で足す */
+/** 全ルート共通の公開設定。プロフィールとセッションは本人APIで読む。 */
 export async function loader() {
   return {
     // CI が Docker の ARG で埋める。ローカルでは未設定
     version: process.env.APP_VERSION ?? "dev",
+    websiteOrigin: new URL(process.env.WEBSITE_ORIGIN ?? "https://lumorphia.com").origin,
     sentryDsn: process.env.SENTRY_DSN ?? "",
     sentryEnvironment: process.env.SENTRY_ENVIRONMENT ?? "production",
   };
@@ -25,29 +27,40 @@ export function Layout({ children }: { children: React.ReactNode }) {
   // ErrorBoundary からも呼ばれるので loader が無いことがある
   const data = useRouteLoaderData<typeof loader>("root");
   return (
-    <html lang="ja">
+    <html lang="ja" data-theme="light" suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="app-version" content={data?.version ?? "dev"} />
+        <link rel="icon" href="/brand/lumorphia-icon.png" type="image/png" />
+        <script src="/theme.js" />
         {data?.sentryDsn ? <meta name="sentry-dsn" content={data.sentryDsn} /> : null}
         <meta name="sentry-environment" content={data?.sentryEnvironment ?? "production"} />
         <Meta />
         <Links />
       </head>
       <body className="min-h-dvh bg-surface text-ink antialiased">
-        {children}
-        <footer className="mx-auto flex max-w-3xl flex-wrap justify-center gap-5 p-6 text-sm text-ink-muted">
-          <a href="/terms" className="underline">
-            利用規約
-          </a>
-          <a href="/privacy" className="underline">
-            プライバシーポリシー
-          </a>
-          <a href="https://forms.gle/cn7FLf8W8gqehL977" className="underline">
-            お問い合わせ
-          </a>
-        </footer>
+        <a href="#main" className="sr-only focus:not-sr-only">
+          本文へ移動
+        </a>
+        <div className="shell account-shell">
+          <BrandHeader />
+          {children}
+          <footer>
+            <span>© Lumorphia</span>
+            <nav className="footer-links" aria-label="フッター">
+              <a href="/terms" className="underline">
+                利用規約
+              </a>
+              <a href="/privacy" className="underline">
+                プライバシーポリシー
+              </a>
+              <a href="https://forms.gle/cn7FLf8W8gqehL977" className="underline">
+                お問い合わせ
+              </a>
+            </nav>
+          </footer>
+        </div>
         <ScrollRestoration />
         <Scripts />
       </body>

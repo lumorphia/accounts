@@ -3,10 +3,10 @@ import { gotoHydrated } from "./helpers.ts";
 
 test("settings saves a name and explains the handle change limit", async ({ page }) => {
   const handle = `s_${Date.now().toString(36)}`;
-  await gotoHydrated(page, "/login");
+  await gotoHydrated(page, "/login?next=%2Fsettings");
   await page.getByLabel("開発用ログイン").fill(handle);
   await page.getByTestId("dev-login").getByRole("button", { name: "ログイン" }).click();
-  await page.waitForURL("/");
+  await page.waitForURL("**/settings");
 
   await gotoHydrated(page, "/settings");
   await expect(page.getByTestId("settings-handle")).toHaveValue(handle);
@@ -17,6 +17,7 @@ test("settings saves a name and explains the handle change limit", async ({ page
   await expect(page.getByTestId("settings-profile-message")).toHaveText("保存しました");
   const me = await page.evaluate(async () => (await fetch("/api/me")).json());
   expect(me.user.name).toBe("設定から変更した名前");
+  await page.getByRole("button", { name: "ログイン方法", exact: true }).click();
   await expect(page.getByTestId("linked-account")).toHaveCount(1);
   await expect(page.getByTestId("unlink-account")).toBeDisabled();
 });
@@ -34,14 +35,16 @@ test("settings connects and removes a second account", async ({ page }) => {
     callback.searchParams.set("state", authorize.searchParams.get("state")!);
     await route.fulfill({ status: 302, headers: { location: callback.toString() } });
   });
-  await gotoHydrated(page, "/login");
+  await gotoHydrated(page, "/login?next=%2Fsettings");
   await page.getByLabel("開発用ログイン").fill(handle);
   await page.getByTestId("dev-login").getByRole("button", { name: "ログイン" }).click();
-  await page.waitForURL("/");
+  await page.waitForURL("**/settings");
 
   await gotoHydrated(page, "/settings");
+  await page.getByRole("button", { name: "ログイン方法", exact: true }).click();
   await page.getByRole("button", { name: "Discord を接続" }).click();
   await page.waitForURL("**/settings");
+  await page.getByRole("button", { name: "ログイン方法", exact: true }).click();
   await expect(page.getByTestId("linked-account")).toHaveCount(2);
   await expect(page.getByTestId("linked-account").filter({ hasText: "Discord" })).toHaveCount(1);
   await page
@@ -54,7 +57,7 @@ test("settings connects and removes a second account", async ({ page }) => {
 
 test("a pending visitor returns to settings after onboarding", async ({ page }) => {
   const handle = `w_${Date.now().toString(36)}`;
-  await gotoHydrated(page, "/login");
+  await gotoHydrated(page, "/login?next=%2Fsettings");
   const status = await page.evaluate(async (id) => {
     const res = await fetch("/api/auth/dev/login", {
       method: "POST",

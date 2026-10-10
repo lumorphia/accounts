@@ -1,8 +1,11 @@
+import { ExternalLinkIcon } from "../components/external-link-icon.tsx";
 import { useEffect, useRef, useState } from "react";
 import { LegacyMigrationGuide } from "../components/legacy-migration-guide.tsx";
 import { AccountLifecycleSettings } from "../components/account-lifecycle-settings.tsx";
 import { CharacterSettings } from "../components/character-settings.tsx";
 import { ReturnToService } from "../components/return-to-service.tsx";
+import { useRouteLoaderData } from "react-router";
+import type { loader as rootLoader } from "../root.tsx";
 import type { Route } from "./+types/settings";
 
 type User = {
@@ -27,13 +30,16 @@ const providers: { id: SocialProvider; label: string }[] = [
 ];
 
 export function meta() {
-  return [{ title: "設定 - Lumorphia" }, { name: "robots", content: "noindex" }];
+  return [{ title: "アカウント管理 - Lumorphia" }, { name: "robots", content: "noindex" }];
 }
 
 export function loader() {
   return {
     providers: providers.filter(({ id }) =>
-      Boolean(process.env[`AUTH_${id === "twitter" ? "X" : id.toUpperCase()}_ID`]),
+      Boolean(
+        process.env[`AUTH_${id === "twitter" ? "X" : id.toUpperCase()}_ID`] &&
+        process.env[`AUTH_${id === "twitter" ? "X" : id.toUpperCase()}_SECRET`],
+      ),
     ),
   };
 }
@@ -45,6 +51,10 @@ async function responseBody<T>(res: Response, fallback: string): Promise<T> {
 }
 
 export default function Settings({ loaderData }: Route.ComponentProps) {
+  const root = useRouteLoaderData<typeof rootLoader>("root");
+  const website = root?.websiteOrigin ?? "https://lumorphia.com";
+  const [section, setSection] = useState("profile");
+
   const [user, setUser] = useState<User | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [name, setName] = useState("");
@@ -110,6 +120,10 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
       setLoading(false);
     });
   }, []);
+
+  useEffect(() => {
+    if (user) window.dispatchEvent(new Event("lumorphia-profile-change"));
+  }, [user]);
 
   const lockedUntil = user?.nextHandleChangeAt ? new Date(user.nextHandleChangeAt) : null;
   const handleLocked = !!lockedUntil && lockedUntil.getTime() > Date.now();
@@ -243,223 +257,301 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
   }
 
   return (
-    <main className="mx-auto max-w-2xl space-y-10 p-8">
-      <h1 className="text-2xl font-semibold">設定</h1>
-      <ReturnToService />
-      {loading ? <p>読み込み中</p> : null}
-      {user && (
-        <>
-          <section className="space-y-4" aria-labelledby="profile-heading">
-            <h2 id="profile-heading" className="text-xl font-semibold">
-              プロフィール
-            </h2>
-            {user.image && (
-              <img
-                src={user.image}
-                alt="現在のアイコン"
-                className="h-20 w-20 rounded-full object-cover"
-              />
-            )}
-            <label className="block text-sm">
-              アイコンを選ぶ
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                disabled={busy}
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) void upload(file);
-                }}
-                className="mt-1 block"
-                data-testid="settings-avatar-file"
-              />
-            </label>
-            {user.image && (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void removeAvatar()}
-                className="rounded border border-line px-3 py-1 text-sm disabled:opacity-50"
-              >
-                アイコンを削除
-              </button>
-            )}
-            <form onSubmit={(event) => void save(event)} className="space-y-4">
-              <label className="block text-sm">
-                表示名
-                <input
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  maxLength={50}
-                  required
-                  className="mt-1 block w-full rounded border border-line bg-surface-raised p-2"
-                  data-testid="settings-name"
-                />
-              </label>
-              <label className="block text-sm">
-                ID
-                <input
-                  value={handle}
-                  onChange={(event) => setHandle(event.target.value.toLowerCase())}
-                  maxLength={20}
-                  disabled={handleLocked}
-                  spellCheck={false}
-                  className="mt-1 block w-full rounded border border-line bg-surface-raised p-2 disabled:opacity-60"
-                  data-testid="settings-handle"
-                />
-                <span className="mt-1 block text-xs text-ink-muted">
-                  3〜20 文字の半角英小文字・数字・_。変更は 30 日に 1 回です。
-                </span>
-                {handleLocked && lockedUntil && (
-                  <span
-                    className="mt-1 block text-xs text-ink-muted"
-                    data-testid="settings-handle-locked"
-                  >
-                    ID は 30 日後の {lockedUntil.toLocaleDateString("ja-JP")} まで変更できません
-                  </span>
+    <main id="main" className="settings-stage">
+      <div className="page-title">
+        <h1>アカウント管理</h1>
+        <p>Lumorphia のサービスで使う情報を管理します。</p>
+        <ReturnToService />
+      </div>
+      <div className="settings-layout">
+        <aside aria-label="管理メニュー">
+          {user && (
+            <div className="side-user">
+              <span className="avatar" aria-hidden="true">
+                {user.image ? (
+                  <img src={user.image} alt="" />
+                ) : (
+                  Array.from(user.name)[0]?.toUpperCase()
                 )}
-              </label>
-              {message && (
-                <p
-                  role={message.ok ? "status" : "alert"}
-                  data-testid="settings-profile-message"
-                  className="text-sm"
-                >
-                  {message.text}
-                </p>
-              )}
+              </span>
+              <div>
+                <strong>{user.name}</strong>
+                <small>@{user.handle}</small>
+              </div>
+            </div>
+          )}
+          <nav className="settings-nav">
+            {[
+              { id: "profile", label: "プロフィール" },
+              { id: "connections", label: "ログイン方法" },
+              { id: "characters", label: "キャラクター" },
+              { id: "account", label: "退会・復旧" },
+            ].map((item) => (
               <button
-                type="submit"
-                disabled={busy || !handleValid || !name.trim()}
-                className="rounded bg-accent px-4 py-2 text-accent-ink disabled:opacity-50"
-                data-testid="settings-save"
+                key={item.id}
+                type="button"
+                aria-pressed={section === item.id}
+                aria-controls={`management-${item.id}`}
+                onClick={() => setSection(item.id)}
               >
-                保存
+                {item.label}
               </button>
-            </form>
-          </section>
-          <CharacterSettings />
-          <section className="space-y-4" aria-labelledby="accounts-heading">
-            <h2 id="accounts-heading" className="text-xl font-semibold">
-              接続しているアカウント
-            </h2>
-            <p className="text-sm text-ink-muted">
-              どの連携先からもログインできます。最後の 1 件は解除できません。
-            </p>
-            <ul
-              className="divide-y divide-line-soft rounded border border-line-soft"
-              data-testid="linked-accounts"
-            >
-              {accounts.map((account) => (
-                <li
-                  key={account.id}
-                  className="flex flex-wrap items-center justify-between gap-3 p-3 text-sm"
-                  data-testid="linked-account"
-                >
-                  <span>
-                    {account.label}
-                    {account.displayName ? ` · ${account.displayName}` : ""}
+            ))}
+          </nav>
+          <a className="return" href={`${website}/`}>
+            Lumorphia に戻る <ExternalLinkIcon />
+          </a>
+        </aside>
+        <div className="management-content">
+          {loading ? <p>読み込み中</p> : null}
+          {user && (
+            <>
+              <section
+                id="management-profile"
+                hidden={section !== "profile"}
+                className="panel profile-panel space-y-4"
+                aria-labelledby="profile-heading"
+              >
+                <h2 id="profile-heading" className="text-xl font-semibold">
+                  プロフィール
+                </h2>
+
+                <div className="profile-picture">
+                  <span className="avatar profile-avatar" aria-hidden="true">
+                    {user.image ? (
+                      <img src={user.image} alt="" />
+                    ) : (
+                      Array.from(user.name)[0]?.toUpperCase()
+                    )}
                   </span>
-                  <span className="flex gap-2">
-                    {account.imageUrl && (
+                  <div>
+                    <label className={`secondary upload-control ${busy ? "upload-busy" : ""}`}>
+                      アイコンを変更
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        disabled={busy}
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          if (file) void upload(file);
+                          event.target.value = "";
+                        }}
+                        className="sr-only"
+                        data-testid="settings-avatar-file"
+                      />
+                    </label>
+                    <p className="helper">PNG・JPEG・WebPの画像を選べます。</p>
+                    {user.image && (
                       <button
                         type="button"
                         disabled={busy}
-                        onClick={() => void useAccountAvatar(account.id)}
-                        className="rounded border border-line px-2 py-1 disabled:opacity-50"
+                        onClick={() => void removeAvatar()}
+                        className="text-link"
                       >
-                        アイコンに使う
+                        アイコンを削除
                       </button>
                     )}
-                    <button
-                      type="button"
-                      disabled={busy || accounts.length <= 1}
-                      onClick={() => void unlink(account.id)}
-                      className="rounded border border-line px-2 py-1 disabled:opacity-50"
-                      data-testid="unlink-account"
+                  </div>
+                </div>
+                <form onSubmit={(event) => void save(event)} className="space-y-4">
+                  <label className="block text-sm">
+                    表示名
+                    <input
+                      value={name}
+                      onChange={(event) => setName(event.target.value)}
+                      maxLength={50}
+                      required
+                      className="mt-1 block w-full rounded border border-line bg-surface-raised p-2"
+                      data-testid="settings-name"
+                    />
+                  </label>
+                  <label className="block text-sm">
+                    ユーザーID
+                    <input
+                      value={handle}
+                      onChange={(event) => setHandle(event.target.value.toLowerCase())}
+                      maxLength={20}
+                      disabled={handleLocked}
+                      spellCheck={false}
+                      className="mt-1 block w-full rounded border border-line bg-surface-raised p-2 disabled:opacity-60"
+                      data-testid="settings-handle"
+                    />
+                    <span className="mt-1 block text-xs text-ink-muted">
+                      3〜20 文字の半角英小文字・数字・_。変更は 30 日に 1 回です。
+                    </span>
+                    {handleLocked && lockedUntil && (
+                      <span
+                        className="mt-1 block text-xs text-ink-muted"
+                        data-testid="settings-handle-locked"
+                      >
+                        ユーザーID は 30 日後の {lockedUntil.toLocaleDateString("ja-JP")}{" "}
+                        まで変更できません
+                      </span>
+                    )}
+                  </label>
+                  {message && (
+                    <p
+                      role={message.ok ? "status" : "alert"}
+                      data-testid="settings-profile-message"
+                      className="text-sm"
                     >
-                      解除
-                    </button>
-                  </span>
-                </li>
-              ))}
-            </ul>
-            {linkError && (
-              <p role="alert" className="text-sm text-red-700">
-                {linkError}
-              </p>
-            )}
-            <h3 className="text-sm font-medium">アカウントを追加</h3>
-            <div className="flex flex-wrap gap-2">
-              {loaderData.providers
-                .filter(({ id }) => !accounts.some((account) => account.providerId === id))
-                .map(({ id, label }) => (
+                      {message.text}
+                    </p>
+                  )}
+                  <div className="notice">
+                    表示名・ユーザーID・アイコンは、Prismtone と Scenote で共通です。
+                  </div>
                   <button
-                    key={id}
-                    type="button"
+                    type="submit"
+                    disabled={busy || !handleValid || !name.trim()}
+                    className="rounded bg-accent px-4 py-2 text-accent-ink disabled:opacity-50"
+                    data-testid="settings-save"
+                  >
+                    変更を保存
+                  </button>
+                </form>
+              </section>
+              <section
+                id="management-characters"
+                className="panel profile-panel"
+                hidden={section !== "characters"}
+              >
+                <CharacterSettings />
+              </section>
+              <section
+                id="management-connections"
+                hidden={section !== "connections"}
+                className="panel profile-panel space-y-4"
+                aria-labelledby="accounts-heading"
+              >
+                <h2 id="accounts-heading" className="text-xl font-semibold">
+                  ログイン方法
+                </h2>
+                <p className="text-sm text-ink-muted">
+                  どの連携先からもログインできます。最後の 1 件は解除できません。
+                </p>
+                <ul
+                  className="divide-y divide-line-soft rounded border border-line-soft"
+                  data-testid="linked-accounts"
+                >
+                  {accounts.map((account) => (
+                    <li
+                      key={account.id}
+                      className="flex flex-wrap items-center justify-between gap-3 p-3 text-sm"
+                      data-testid="linked-account"
+                    >
+                      <span>
+                        {account.label}
+                        {account.displayName ? ` · ${account.displayName}` : ""}
+                      </span>
+                      <span className="flex gap-2">
+                        {account.imageUrl && (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => void useAccountAvatar(account.id)}
+                            className="rounded border border-line px-2 py-1 disabled:opacity-50"
+                          >
+                            アイコンに使う
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          disabled={busy || accounts.length <= 1}
+                          onClick={() => void unlink(account.id)}
+                          className="rounded border border-line px-2 py-1 disabled:opacity-50"
+                          data-testid="unlink-account"
+                        >
+                          解除
+                        </button>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                {linkError && (
+                  <p role="alert" className="text-sm text-red-700">
+                    {linkError}
+                  </p>
+                )}
+                <h3 className="text-sm font-medium">アカウントを追加</h3>
+                <div className="flex flex-wrap gap-2">
+                  {loaderData.providers
+                    .filter(({ id }) => !accounts.some((account) => account.providerId === id))
+                    .map(({ id, label }) => (
+                      <button
+                        key={id}
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void beginLink("/api/auth/link-social", { provider: id })}
+                        className="rounded border border-line px-3 py-2 text-sm disabled:opacity-50"
+                      >
+                        {label} を接続
+                      </button>
+                    ))}
+                </div>
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void beginLink("/api/auth/miauth/start", { host: misskeyHost.trim() });
+                  }}
+                  className="flex flex-wrap items-end gap-2"
+                >
+                  <label className="text-sm">
+                    Misskey のサーバー
+                    <input
+                      value={misskeyHost}
+                      onChange={(event) => setMisskeyHost(event.target.value)}
+                      placeholder="misskey.io"
+                      required
+                      className="mt-1 block rounded border border-line bg-surface-raised p-2"
+                    />
+                  </label>
+                  <button
+                    type="submit"
                     disabled={busy}
-                    onClick={() => void beginLink("/api/auth/link-social", { provider: id })}
                     className="rounded border border-line px-3 py-2 text-sm disabled:opacity-50"
                   >
-                    {label} を接続
+                    Misskey を接続
                   </button>
-                ))}
-            </div>
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                void beginLink("/api/auth/miauth/start", { host: misskeyHost.trim() });
-              }}
-              className="flex flex-wrap items-end gap-2"
-            >
-              <label className="text-sm">
-                Misskey のサーバー
-                <input
-                  value={misskeyHost}
-                  onChange={(event) => setMisskeyHost(event.target.value)}
-                  placeholder="misskey.io"
-                  required
-                  className="mt-1 block rounded border border-line bg-surface-raised p-2"
-                />
-              </label>
-              <button
-                type="submit"
-                disabled={busy}
-                className="rounded border border-line px-3 py-2 text-sm disabled:opacity-50"
+                </form>
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void beginLink("/api/auth/mastodon/start", { host: mastodonHost.trim() });
+                  }}
+                  className="flex flex-wrap items-end gap-2"
+                >
+                  <label className="text-sm">
+                    Mastodon のサーバー
+                    <input
+                      value={mastodonHost}
+                      onChange={(event) => setMastodonHost(event.target.value)}
+                      placeholder="mstdn.jp"
+                      required
+                      className="mt-1 block rounded border border-line bg-surface-raised p-2"
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={busy}
+                    className="rounded border border-line px-3 py-2 text-sm disabled:opacity-50"
+                  >
+                    Mastodon を接続
+                  </button>
+                </form>
+              </section>
+              <section
+                id="management-account"
+                hidden={section !== "account"}
+                className="panel profile-panel space-y-6"
               >
-                Misskey を接続
-              </button>
-            </form>
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                void beginLink("/api/auth/mastodon/start", { host: mastodonHost.trim() });
-              }}
-              className="flex flex-wrap items-end gap-2"
-            >
-              <label className="text-sm">
-                Mastodon のサーバー
-                <input
-                  value={mastodonHost}
-                  onChange={(event) => setMastodonHost(event.target.value)}
-                  placeholder="mstdn.jp"
-                  required
-                  className="mt-1 block rounded border border-line bg-surface-raised p-2"
-                />
-              </label>
-              <button
-                type="submit"
-                disabled={busy}
-                className="rounded border border-line px-3 py-2 text-sm disabled:opacity-50"
-              >
-                Mastodon を接続
-              </button>
-            </form>
-          </section>
-          <LegacyMigrationGuide />
-          <AccountLifecycleSettings handle={user.handle} />
-        </>
-      )}
+                <LegacyMigrationGuide />
+                <AccountLifecycleSettings handle={user.handle} />
+              </section>
+            </>
+          )}
+        </div>
+      </div>
     </main>
   );
 }

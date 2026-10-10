@@ -24,6 +24,8 @@ pnpm --filter @lumorphia-accounts/app dev   # http://127.0.0.1:3100 (Caddy の�
 
 E2E はこの 2 つが無くても動く (Chromium に名前の向け先を渡し、証明書の検証を飛ばす。`playwright.config.ts`)。
 
+`AUTH_SECRET` はセッションとOIDC署名鍵の暗号化に使うため、DBを作った後は同じ値を使い続ける。Discord・Googleなどの `AUTH_*_ID` / `AUTH_*_SECRET` を設定するときも、`AUTH_SECRET` は変更しない。変更後に「Failed to decrypt private key」が出る場合は、以前の値に戻して開発サーバーを再起動する。
+
 ### パッケージのトークン
 
 `@lumorphia/*` (lumorphia/platform) は GitHub Packages にあり、読むには `read:packages` のトークンが要る。リポジトリの `.npmrc` には向き先だけを書いてある。手元では一度だけ:
@@ -31,6 +33,14 @@ E2E はこの 2 つが無くても動く (Chromium に名前の向け先を渡�
 ```sh
 pnpm config set //npm.pkg.github.com/:_authToken "$(gh auth token)"
 ```
+
+## ブランド画面とトップ
+
+トップは隣の `website/` が配信し、このアプリはログイン・初回登録・アカウント管理を提供する。通常ログイン後は `WEBSITE_ORIGIN` のトップへ戻る。署名付きOIDCの認可と退会復旧は既存の導線を維持する。
+
+トップからの表示用セッション取得だけを `WEBSITE_ORIGIN` に許可する。手元のトップへ戻す場合は、HTTPSかつAccountsと同じサイトのオリジンを設定する。[websiteの設定](../website/README.md)と[設計判断](docs/adr/0014-brand-and-website-navigation.md)を参照。
+
+[実画面の確認画像](docs/design/implemented/README.md)と[採用案](docs/design/previews/lumorphia-brand/README.md)の説明を置いている。画像そのものは git に入れず手元にだけ置く (`pnpm e2e e2e/brand.spec.ts` で撮り直す)。
 
 ## ライセンス
 

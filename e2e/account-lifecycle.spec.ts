@@ -13,12 +13,13 @@ test("deletes the global account and restores it only when the owner asks after 
   page,
 }) => {
   const handle = `dl_${Date.now().toString(36)}`;
-  await gotoHydrated(page, "/login");
+  await gotoHydrated(page, "/login?next=%2Fsettings");
   await page.getByLabel("開発用ログイン").fill(handle);
   await page.getByTestId("dev-login").getByRole("button", { name: "ログイン" }).click();
-  await page.waitForURL("/");
+  await page.waitForURL("**/settings");
   const before = await page.evaluate(async () => (await (await fetch("/api/me")).json()).user.id);
   await gotoHydrated(page, "/settings");
+  await page.getByRole("button", { name: "退会・復旧", exact: true }).click();
   await page.getByRole("button", { name: "Lumorphia から退会", exact: true }).click();
   await expect(page.getByTestId("global-deletion-confirmation")).toContainText(
     "画像は復旧しても戻りません",
@@ -39,6 +40,7 @@ test("deletes the global account and restores it only when the owner asks after 
   );
   await recovery.getByRole("button", { name: "復旧する", exact: true }).click();
   await expect(recovery).toBeHidden();
+  await gotoHydrated(page, "/settings");
   const restored = await page.evaluate(async () => (await (await fetch("/api/me")).json()).user);
   expect(restored.id).toBe(before);
   expect(restored.status).toBe("active");
@@ -46,10 +48,10 @@ test("deletes the global account and restores it only when the owner asks after 
 
 test("asks to restore a deleted service before continuing to it", async ({ page }) => {
   const handle = `sr_${Date.now().toString(36)}`;
-  await gotoHydrated(page, "/login");
+  await gotoHydrated(page, "/login?next=%2Fsettings");
   await page.getByLabel("開発用ログイン").fill(handle);
   await page.getByTestId("dev-login").getByRole("button", { name: "ログイン" }).click();
-  await page.waitForURL("/");
+  await page.waitForURL("**/settings");
   const userId = await page.evaluate(async () => (await (await fetch("/api/me")).json()).user.id);
   const database = createDatabase(e2eDatabaseUrl());
   try {
@@ -82,15 +84,16 @@ test("deletes and restores one service while keeping the Lumorphia account activ
   page,
 }) => {
   const handle = `sv_${Date.now().toString(36)}`;
-  await gotoHydrated(page, "/login");
+  await gotoHydrated(page, "/login?next=%2Fsettings");
   await page.getByLabel("開発用ログイン").fill(handle);
   await page.getByTestId("dev-login").getByRole("button", { name: "ログイン" }).click();
-  await page.waitForURL("/");
+  await page.waitForURL("**/settings");
   const userId = await page.evaluate(async () => (await (await fetch("/api/me")).json()).user.id);
   const database = createDatabase(e2eDatabaseUrl());
   try {
     await database.db.insert(schema.serviceMemberships).values({ userId, service: "scenote" });
     await gotoHydrated(page, "/settings");
+    await page.getByRole("button", { name: "退会・復旧", exact: true }).click();
     const service = page.getByTestId("service-membership").filter({ hasText: "Scenote" });
     await service.getByRole("button", { name: "このサービスを退会" }).click();
     await page.getByLabel("退会の確認用 ID", { exact: true }).fill(handle);
@@ -202,13 +205,14 @@ test("retries signed deletion delivery over verified TLS before sending restorat
   let userId: string | undefined;
   try {
     const handle = `nt_${Date.now().toString(36)}`;
-    await gotoHydrated(page, "/login");
+    await gotoHydrated(page, "/login?next=%2Fsettings");
     await page.getByLabel("開発用ログイン").fill(handle);
     await page.getByTestId("dev-login").getByRole("button", { name: "ログイン" }).click();
-    await page.waitForURL("/");
+    await page.waitForURL("**/settings");
     userId = await page.evaluate(async () => (await (await fetch("/api/me")).json()).user.id);
     await app.db.insert(schema.serviceMemberships).values({ userId: userId!, service: "scenote" });
     await gotoHydrated(page, "/settings");
+    await page.getByRole("button", { name: "退会・復旧", exact: true }).click();
     await page.getByRole("button", { name: "Lumorphia から退会", exact: true }).click();
     await page.getByLabel("退会の確認用 ID", { exact: true }).fill(handle);
     await page.getByRole("button", { name: "退会を確定", exact: true }).click();

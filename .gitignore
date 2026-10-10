@@ -17,3 +17,7 @@ playwright-report/
 # spike は手元の証明書と依存を置く
 spikes/*/certs/
 spikes/*/node_modules/
+# 画面の確認画像と試作の素材は手元にだけ置く (public のリポジトリにスクリーンショットを入れない)。
+# e2e/brand.spec.ts が docs/design/implemented/ に撮り直す
+docs/design/**/*.png
+docs/design/**/*.webp

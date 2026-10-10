@@ -24,7 +24,7 @@ test.beforeAll(async () => {
 test("offers the old Prismtone handle during onboarding and keeps the migration guide after setup", async ({
   page,
 }) => {
-  await gotoHydrated(page, "/login");
+  await gotoHydrated(page, "/login?next=%2Fsettings");
   const userId = await page.evaluate(async (handle) => {
     const res = await fetch("/api/auth/dev/login", {
       method: "POST",
@@ -39,7 +39,7 @@ test("offers the old Prismtone handle during onboarding and keeps the migration 
   } finally {
     await database.close();
   }
-  await gotoHydrated(page, "/welcome");
+  await gotoHydrated(page, "/welcome?next=%2Fsettings");
   const guide = page.getByTestId("legacy-migration-guide");
   await expect(guide).toContainText("Prismtone のアカウントが見つかりました");
   await expect(guide).toContainText("移行期限はありません");
@@ -48,9 +48,11 @@ test("offers the old Prismtone handle during onboarding and keeps the migration 
   await page.getByLabel("15歳以上です").check();
   await page.getByLabel("利用規約とプライバシーポリシーを読み、同意します").check();
   await page.getByRole("button", { name: "設定を完了" }).click();
-  await page.waitForURL("/");
+  await page.waitForURL("**/settings");
+  await page.getByRole("button", { name: "退会・復旧", exact: true }).click();
   await expect(page.getByTestId("legacy-migration-guide")).toBeVisible();
   await gotoHydrated(page, "/settings");
+  await page.getByRole("button", { name: "退会・復旧", exact: true }).click();
   await expect(page.getByRole("link", { name: "Prismtone で引き継ぐ" })).toHaveAttribute(
     "href",
     "https://prismtone.lumorphia.com/settings/migration",
@@ -59,7 +61,7 @@ test("offers the old Prismtone handle during onboarding and keeps the migration 
 test("keeps an unrelated new user out of the reserved handle and does not show a migration notice", async ({
   page,
 }) => {
-  await gotoHydrated(page, "/login");
+  await gotoHydrated(page, "/login?next=%2Fsettings");
   await page.evaluate(async (handle) => {
     await fetch("/api/auth/dev/login", {
       method: "POST",
@@ -67,7 +69,7 @@ test("keeps an unrelated new user out of the reserved handle and does not show a
       body: JSON.stringify({ handle, onboarded: false }),
     });
   }, `oth_${stamp}`);
-  await gotoHydrated(page, "/welcome");
+  await gotoHydrated(page, "/welcome?next=%2Fsettings");
   await expect(page.getByTestId("welcome-handle")).toBeVisible();
   await expect(page.getByTestId("legacy-migration-guide")).toHaveCount(0);
   const result = await page.evaluate(async (handle) => {

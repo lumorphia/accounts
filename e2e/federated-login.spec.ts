@@ -13,7 +13,8 @@ test.describe("federated login", () => {
       await page.request.post(`http://${HOSTS[provider]}/_e2e/user`, {
         data: { id, username: `test_${provider}` },
       });
-      await gotoHydrated(page, "/login");
+      await gotoHydrated(page, "/login?next=%2Fsettings");
+      await page.locator("summary").filter({ hasText: "Misskey・Mastodon" }).click();
       await page
         .getByLabel(`${provider === "misskey" ? "Misskey" : "Mastodon"} のサーバー`)
         .fill(HOSTS[provider]);
@@ -29,7 +30,7 @@ test.describe("federated login", () => {
       await page.getByLabel("15歳以上です").check();
       await page.getByLabel("利用規約とプライバシーポリシーを読み、同意します").check();
       await page.getByRole("button", { name: "設定を完了" }).click();
-      await page.waitForURL("/");
+      await page.waitForURL("**/settings");
       const active = await page.evaluate(async () => (await fetch("/api/me")).json());
       expect(active.user).toMatchObject({ handle, status: "active" });
       const accounts = await page.evaluate(async () => (await fetch("/api/me/accounts")).json());

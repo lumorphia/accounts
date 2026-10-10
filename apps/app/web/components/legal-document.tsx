@@ -16,7 +16,7 @@ function inline(text: string): ReactNode[] {
 /** 管理する本文だけを表示し、HTML を解釈しない。 */
 export function LegalDocument({ text }: { text: string }) {
   return (
-    <main className="mx-auto max-w-3xl space-y-5 p-8 leading-relaxed">
+    <main id="main" className="mx-auto max-w-3xl space-y-5 p-8 leading-relaxed">
       {text
         .trim()
         .split(/\n\s*\n/)

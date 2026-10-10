@@ -82,78 +82,117 @@ export default function Welcome(_: Route.ComponentProps) {
   }
 
   return (
-    <main className="mx-auto max-w-md space-y-5 p-8">
-      <h1 className="text-2xl font-semibold">アカウントを設定</h1>
-      <p className="text-sm text-ink-muted">Lumorphia で使う ID と表示名を決めてください。</p>
-      {!loading && <LegacyMigrationGuide onChooseHandle={setHandle} />}
-      {!loading && (
-        <form onSubmit={(event) => void submit(event)} className="space-y-4">
-          <label htmlFor="welcome-handle" className="block text-sm">
-            ID
-          </label>
-          <input
-            id="welcome-handle"
-            data-testid="welcome-handle"
-            value={handle}
-            onChange={(event) => setHandle(event.target.value.toLowerCase())}
-            minLength={3}
-            maxLength={20}
-            required
-            className="w-full rounded border border-line bg-surface-raised p-2"
-          />
-          <label htmlFor="welcome-name" className="block text-sm">
-            表示名
-          </label>
-          <input
-            id="welcome-name"
-            data-testid="welcome-name"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            maxLength={50}
-            required
-            className="w-full rounded border border-line bg-surface-raised p-2"
-          />
-          <label className="flex gap-2 text-sm">
-            <input
-              type="checkbox"
-              required
-              checked={ageConfirmed}
-              onChange={(event) => setAgeConfirmed(event.target.checked)}
-            />
-            15歳以上です
-          </label>
-          <label className="flex gap-2 text-sm">
-            <input
-              type="checkbox"
-              required
-              checked={legalConfirmed}
-              onChange={(event) => setLegalConfirmed(event.target.checked)}
-            />
-            <span>
-              <a href="/terms" target="_blank" rel="noopener" className="underline">
-                利用規約
+    <main id="main" className="welcome-stage">
+      <div className="welcome-intro">
+        <p className="eyebrow">WELCOME TO LUMORPHIA</p>
+        <h1>アカウントを設定</h1>
+        <p className="sub">Lumorphia のサービスで使う表示名とユーザーIDを決めてください。</p>
+      </div>
+      <section className="panel section">
+        {!loading && <LegacyMigrationGuide onChooseHandle={setHandle} />}
+        {loading && <p role="status">読み込み中</p>}
+        {!loading && (
+          <form onSubmit={(event) => void submit(event)}>
+            <div className="field">
+              <label htmlFor="welcome-name">表示名</label>
+              <input
+                id="welcome-name"
+                data-testid="welcome-name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                maxLength={50}
+                required
+                aria-describedby="welcome-name-help"
+              />
+              <p className="helper" id="welcome-name-help">
+                サービス内で表示される名前です。
+              </p>
+            </div>
+            <div className="field">
+              <label htmlFor="welcome-handle">ユーザーID</label>
+              <div className="handle-input">
+                <span aria-hidden="true">@</span>
+                <input
+                  id="welcome-handle"
+                  data-testid="welcome-handle"
+                  value={handle}
+                  onChange={(event) => setHandle(event.target.value.toLowerCase())}
+                  pattern="[a-z0-9_]{3,20}"
+                  minLength={3}
+                  maxLength={20}
+                  required
+                  aria-describedby="welcome-handle-help welcome-handle-format"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                />
+              </div>
+              <p className="helper" id="welcome-handle-help">
+                表示名が同じ人を区別するためのIDです。@mizuki
+                のように表示され、他の人と同じIDは使えません。
+              </p>
+              <p className="helper" id="welcome-handle-format">
+                半角英小文字・数字・アンダースコアで3〜20文字。
+              </p>
+            </div>
+            <div className="notice">
+              ここで設定した表示名とユーザーIDは、PrismtoneやScenoteでも使います。
+            </div>
+            <p className="helper" id="age-policy">
+              <a
+                className="text-link"
+                href="https://support.jp.square-enix.com/rule.php?id=5381&tag=users"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                FFXIVの利用規約
               </a>
-              と
-              <a href="/privacy" target="_blank" rel="noopener" className="underline">
-                プライバシーポリシー
-              </a>
-              を読み、同意します
-            </span>
-          </label>
-          <button
-            type="submit"
-            disabled={busy || !consent || !ageConfirmed || !legalConfirmed}
-            className="rounded bg-accent px-4 py-2 text-accent-ink disabled:opacity-50"
-          >
-            設定を完了
-          </button>
-        </form>
-      )}
-      {error && (
-        <p role="alert" className="text-sm text-red-700">
-          {error}
-        </p>
-      )}
+              の年齢条件に合わせ、Lumorphiaも15歳以上の方を対象としています。未成年の方は、保護者の同意を得て登録してください。
+            </p>
+            <div className="consent">
+              <label>
+                <input
+                  type="checkbox"
+                  required
+                  aria-describedby="age-policy"
+                  checked={ageConfirmed}
+                  onChange={(event) => setAgeConfirmed(event.target.checked)}
+                />
+                私は15歳以上です
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  required
+                  checked={legalConfirmed}
+                  onChange={(event) => setLegalConfirmed(event.target.checked)}
+                />
+                <span>
+                  <a href="/terms" target="_blank" rel="noopener" className="text-link">
+                    利用規約
+                  </a>
+                  と
+                  <a href="/privacy" target="_blank" rel="noopener" className="text-link">
+                    プライバシーポリシー
+                  </a>
+                  を読み、同意します
+                </span>
+              </label>
+            </div>
+            <button
+              type="submit"
+              disabled={busy || !consent || !ageConfirmed || !legalConfirmed}
+              className="primary welcome-submit"
+            >
+              {busy ? "設定を保存しています…" : "設定を完了"}
+            </button>
+          </form>
+        )}
+        {error && (
+          <p role="alert" className="form-error">
+            {error}
+          </p>
+        )}
+      </section>
     </main>
   );
 }

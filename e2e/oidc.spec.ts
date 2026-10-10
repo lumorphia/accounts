@@ -98,10 +98,10 @@ test.describe("OIDC browser authorization", () => {
 
   async function authorizeSession(page: Page, scope = "openid profile") {
     receivedLogoutTokens = [];
-    await gotoHydrated(page, "/login");
+    await gotoHydrated(page, "/login?next=%2Fsettings");
     await page.getByLabel("開発用ログイン").fill(`lo_${randomBytes(6).toString("hex")}`);
     await page.getByTestId("dev-login").getByRole("button", { name: "ログイン" }).click();
-    await page.waitForURL("/");
+    await page.waitForURL("**/settings");
     const verifier = randomBytes(32).toString("base64url");
     const query = new URLSearchParams({
       client_id: client.client_id,
@@ -155,10 +155,10 @@ test.describe("OIDC browser authorization", () => {
     }) => {
       const handle = `o_${randomBytes(6).toString("hex")}`;
       if (provider === "sso") {
-        await gotoHydrated(page, "/login");
+        await gotoHydrated(page, "/login?next=%2Fsettings");
         await page.getByLabel("開発用ログイン").fill(handle);
         await page.getByTestId("dev-login").getByRole("button", { name: "ログイン" }).click();
-        await page.waitForURL("/");
+        await page.waitForURL("**/settings");
       }
       const verifier = randomBytes(32).toString("base64url");
       const nonce = `test-${randomBytes(8).toString("hex")}`;
@@ -212,6 +212,7 @@ test.describe("OIDC browser authorization", () => {
             provider === "misskey"
               ? (process.env.MOCK_MISSKEY_PORT ?? 3399)
               : (process.env.MOCK_MASTODON_PORT ?? 3402);
+          await page.locator("summary").filter({ hasText: "Misskey・Mastodon" }).click();
           await page
             .getByLabel(`${provider === "misskey" ? "Misskey" : "Mastodon"} のサーバー`)
             .fill(`127.0.0.1:${port}`);
@@ -333,7 +334,7 @@ test.describe("OIDC browser authorization", () => {
     expect(payload.sid).toBe(hinted.sid);
     expect(payload.events).toEqual({ "http://schemas.openid.net/event/backchannel-logout": {} });
     expect(payload.nonce).toBeUndefined();
-    await gotoHydrated(page, "/");
+    await gotoHydrated(page, "/login");
     const me = await page.evaluate(async () => (await fetch("/api/me")).json());
     expect(me.user).toBeNull();
     await page.goto(`/api/auth/oauth2/authorize?${query}`);
@@ -355,7 +356,7 @@ test.describe("OIDC browser authorization", () => {
     await page.waitForURL((url) => url.pathname === "/signed-out");
     expect(new URL(page.url()).searchParams.get("state")).toBe("test-browser-confirm");
     expect(receivedLogoutTokens.length).toBe(1);
-    await gotoHydrated(page, "/");
+    await gotoHydrated(page, "/login");
     const me = await page.evaluate(async () => (await fetch("/api/me")).json());
     expect(me.user).toBeNull();
   });

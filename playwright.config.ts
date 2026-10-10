@@ -26,10 +26,24 @@ export default defineConfig({
     trace: "retain-on-failure",
     // 手元専用の CA はブラウザが知らない。証明書の検証は scripts/dev-certs.sh と openssl verify で確かめる
     ignoreHTTPSErrors: true,
-    launchOptions: { args: [`--host-resolver-rules=MAP *.lumorphia.test 127.0.0.1`] },
+    launchOptions: {
+      args: [`--host-resolver-rules=MAP *.lumorphia.test 127.0.0.1, MAP lumorphia.test 127.0.0.1`],
+    },
   },
   projects: [{ name: "chromium", use: { browserName: "chromium" } }],
   webServer: [
+    {
+      command: "node ../website/scripts/serve.mjs",
+      url: "https://127.0.0.1:3444/",
+      ignoreHTTPSErrors: true,
+      reuseExistingServer: !process.env.CI,
+      env: {
+        PORT: "3444",
+        ACCOUNTS_ORIGIN: `https://${HOST}:${PORT}`,
+        DEV_TLS_CERT: `${TLS}cert.pem`,
+        DEV_TLS_KEY: `${TLS}key.pem`,
+      },
+    },
     {
       command: "node e2e/mock-lodestone.ts",
       url: `http://127.0.0.1:${LODESTONE_PORT}/health`,
@@ -79,6 +93,7 @@ export default defineConfig({
         API_RATE_LIMIT_DISABLED: "1",
         AUTH_SECRET: "test-e2e-secret-test-e2e-secret-1234",
         AUTH_BASE_URL: `https://${HOST}:${PORT}`,
+        WEBSITE_ORIGIN: "https://lumorphia.test:3444",
         PUBLIC_IMAGE_BASE_URL: `https://${HOST}:${PORT}/api/media`,
         AUTH_DISCORD_ID: "test-mock-discord-id",
         AUTH_DISCORD_SECRET: "test-mock-discord-secret",
