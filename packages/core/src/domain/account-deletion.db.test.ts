@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createDatabase, eq, schema } from "@lumorphia-accounts/db";
+import { createDatabase, eq, schema, sql } from "@lumorphia-accounts/db";
 import {
   deleteLumorphiaAccount,
   deleteServiceAccount,
@@ -17,8 +17,11 @@ const now = new Date("2026-10-07T00:00:00Z");
 const day = 86_400_000;
 describe.skipIf(!databaseUrl)("account lifecycle (PostgreSQL)", () => {
   let database: ReturnType<typeof createDatabase>;
-  beforeAll(() => {
+  beforeAll(async () => {
     database = createDatabase(databaseUrl!);
+    // このファイル専用の DB。purgeAccounts は DB の中の期限切れの人を全部処理するので、前の回の
+    // 利用者と知らせを残すと回すたびに遅くなる (2026-10 に知らせが 73 万件たまり、5 秒を超えた)
+    await database.db.execute(sql`truncate table users, account_events cascade`);
   });
   afterAll(async () => {
     await database?.close();
