@@ -55,7 +55,7 @@ test("offers the old Prismtone handle during onboarding and keeps the migration 
   await page.getByRole("button", { name: "退会・復旧", exact: true }).click();
   await expect(page.getByRole("link", { name: "Prismtone で引き継ぐ" })).toHaveAttribute(
     "href",
-    "https://prismtone.lumorphia.com/settings/migration",
+    "https://prismtone.lumorphia.com/login",
   );
 });
 test("keeps an unrelated new user out of the reserved handle and does not show a migration notice", async ({
