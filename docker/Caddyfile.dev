@@ -6,6 +6,8 @@
 }
 
 https://accounts.lumorphia.test:8443 {
+	# WSL2 の localhost 転送で Windows のブラウザからも届くよう、IPv4 で待ち受ける。
+	bind 127.0.0.1
 	tls /certs/cert.pem /certs/key.pem
 	reverse_proxy 127.0.0.1:3100
 }

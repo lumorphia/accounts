@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router";
+import { useSearchParams, useRouteLoaderData } from "react-router";
+import type { loader } from "../root.tsx";
 import { LegacyMigrationGuide } from "../components/legacy-migration-guide.tsx";
 import { AccountRecovery, ServiceRecovery } from "../components/recovery.tsx";
 import { loginNext } from "../auth/login-next.ts";
@@ -16,6 +17,8 @@ type Session =
   | { kind: "deleted"; recoverUntil: string };
 
 export default function Home() {
+  const root = useRouteLoaderData<typeof loader>("root");
+  const website = root?.websiteOrigin ?? "https://lumorphia.com";
   const [params] = useSearchParams();
   const [session, setSession] = useState<Session>({ kind: "loading" });
   const next = loginNext(params);
@@ -35,16 +38,22 @@ export default function Home() {
           setSession({ kind: "deleted", recoverUntil: data.user.recoverUntil });
           return;
         }
+        if (data.user && !service) {
+          window.location.assign(`${website}/`);
+          return;
+        }
+        if (!data.user) {
+          window.location.assign("/login");
+          return;
+        }
         setSession({ kind: data.user ? "authenticated" : "guest" });
       })
       .catch(() => setSession({ kind: "error" }));
-  }, []);
+  }, [service, website]);
   return (
-    <main className="mx-auto max-w-2xl p-8">
-      <h1 className="text-2xl font-semibold">Lumorphia アカウント</h1>
-      <p className="mt-2 text-ink-muted">
-        Lumorphia のサービス (Prismtone、Scenote) で使うアカウントです。準備中です。
-      </p>
+    <main id="main" className="mx-auto max-w-2xl p-8">
+      <h1 className="text-2xl font-semibold">アカウントの確認</h1>
+      {session.kind === "loading" && <p role="status">ログイン状態を確認しています…</p>}
       {session.kind === "deleted" ? (
         <AccountRecovery
           recoverUntil={session.recoverUntil}
@@ -69,7 +78,7 @@ export default function Home() {
       ) : null}
       {session.kind === "authenticated" ? (
         <a href="/settings" className="mt-6 inline-block text-accent underline">
-          設定
+          アカウント管理
         </a>
       ) : null}
       {session.kind === "error" ? (

@@ -8,10 +8,10 @@ test("an active user updates their name and avatar while the handle is locked", 
   page,
 }) => {
   const handle = `p_${Date.now().toString(36)}`;
-  await gotoHydrated(page, "/login");
+  await gotoHydrated(page, "/login?next=%2Fsettings");
   await page.getByLabel("開発用ログイン").fill(handle);
   await page.getByTestId("dev-login").getByRole("button", { name: "ログイン" }).click();
-  await page.waitForURL("/");
+  await page.waitForURL("**/settings");
 
   const profile = await page.evaluate(async () => {
     const res = await fetch("/api/me/profile", {

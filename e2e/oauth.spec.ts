@@ -29,7 +29,7 @@ test.describe("social OAuth", () => {
         data: { id, name: `Test ${provider}` },
       });
       await approveAuthorize(page, provider);
-      await gotoHydrated(page, "/login");
+      await gotoHydrated(page, "/login?next=%2Fsettings");
       await page.getByRole("button", { name: `${LABEL[provider]} でログイン` }).click();
       await page.waitForURL(
         (url) => !url.pathname.startsWith("/api/auth") && url.pathname !== "/login",
@@ -42,7 +42,7 @@ test.describe("social OAuth", () => {
       await page.getByLabel("15歳以上です").check();
       await page.getByLabel("利用規約とプライバシーポリシーを読み、同意します").check();
       await page.getByRole("button", { name: "設定を完了" }).click();
-      await page.waitForURL("/");
+      await page.waitForURL("**/settings");
       const active = await page.evaluate(async () => (await fetch("/api/me")).json());
       expect(active.user).toMatchObject({ handle, status: "active" });
       const accounts = await page.evaluate(async () => (await fetch("/api/me/accounts")).json());

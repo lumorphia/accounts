@@ -57,18 +57,18 @@ test.describe("return to the service from settings", () => {
   }
 
   test("shows a link back to a registered service", async ({ page }) => {
-    await gotoHydrated(page, "/login");
+    await gotoHydrated(page, "/login?next=%2Fsettings");
     await devLogin(page);
-    await page.waitForURL("/");
+    await page.waitForURL("**/settings");
     await gotoHydrated(page, `/settings?return_to=${encodeURIComponent(back)}`);
     await expect(page.getByTestId("return-to-service")).toHaveText("Prismtone に戻る");
     await expect(page.getByTestId("return-to-service")).toHaveAttribute("href", back);
   });
 
   test("shows no link for an unregistered site", async ({ page }) => {
-    await gotoHydrated(page, "/login");
+    await gotoHydrated(page, "/login?next=%2Fsettings");
     await devLogin(page);
-    await page.waitForURL("/");
+    await page.waitForURL("**/settings");
     await gotoHydrated(
       page,
       `/settings?return_to=${encodeURIComponent("https://evil.example/settings")}`,

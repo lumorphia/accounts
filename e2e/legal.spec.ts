@@ -2,7 +2,7 @@ import { expect, test } from "./test.ts";
 import { gotoHydrated } from "./helpers.ts";
 
 test("public legal pages remain readable without signing in", async ({ page }) => {
-  await gotoHydrated(page, "/login");
+  await gotoHydrated(page, "/login?next=%2Fsettings");
   await page.getByRole("link", { name: "利用規約", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Lumorphia アカウント 利用規約", exact: true }),
@@ -16,7 +16,7 @@ test("public legal pages remain readable without signing in", async ({ page }) =
 });
 
 test("onboarding requires both legal consent and an age confirmation", async ({ page }) => {
-  await gotoHydrated(page, "/login");
+  await gotoHydrated(page, "/login?next=%2Fsettings");
   await page.evaluate(async () => {
     await fetch("/api/auth/dev/login", {
       method: "POST",

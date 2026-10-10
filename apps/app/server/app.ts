@@ -20,6 +20,7 @@ import { returnTargetRoutes } from "./routes/return-target.ts";
 import { characterRoutes } from "./routes/characters.ts";
 import { legacyLedgerRoutes } from "./routes/legacy-ledger.ts";
 import { meRoutes } from "./routes/me.ts";
+import { websiteSessionRoutes, websiteLogoutRoutes } from "./routes/website-session.ts";
 import { securityPlugin } from "./plugins/security.ts";
 import { errorsPlugin } from "./plugins/errors.ts";
 import { healthRoutes } from "./routes/health.ts";
@@ -86,6 +87,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
       ...(opts.mastodonFetch ? { mastodonFetch: opts.mastodonFetch } : {}),
     });
   if (!opts.skipDb) await app.register(characterPlugin, opts);
+  if (!opts.skipDb) await app.register(websiteLogoutRoutes);
   await app.register(underPressure, {
     maxEventLoopDelay: 1000,
     maxHeapUsedBytes: 1_500_000_000,
@@ -108,6 +110,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
       await api.register(healthRoutes);
       if (!opts.skipDb) {
         await api.register(meRoutes);
+        await api.register(websiteSessionRoutes);
         await api.register(legacyLedgerRoutes);
         await api.register(characterRoutes);
         await api.register(accountLifecycleRoutes);

@@ -16,4 +16,6 @@
 | [0012](0012-service-identity-and-authorize-side-effects.md) | サービスは metadata で見分け、状態の変更は認可の入口で行う                          |
 | [0013](0013-characters-for-services-and-migration.md)       | サービスに未認証のキャラクターも渡し、引き継ぎでキャラクターを取り込む              |
 
+| [0014](0014-brand-and-website-navigation.md) | ブランド画面とトップへのログイン導線、表示用セッションの限定共有 |
+
 本文中の「prismtone ADR-NNNN」は lumorphia/prismtone の ADR を指す。全体の計画は [plan.md](../plan.md)。

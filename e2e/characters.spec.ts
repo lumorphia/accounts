@@ -8,11 +8,12 @@ test.describe("character settings", () => {
   test.describe.configure({ mode: "serial" });
   test("registers, reissues, verifies and removes a character over HTTPS", async ({ page }) => {
     await page.request.post(`${mock}/_e2e/character`, { data: { introduction: "" } });
-    await gotoHydrated(page, "/login");
+    await gotoHydrated(page, "/login?next=%2Fsettings");
     await page.getByLabel("開発用ログイン").fill(`ch_${Date.now().toString(36)}`);
     await page.getByTestId("dev-login").getByRole("button", { name: "ログイン" }).click();
-    await page.waitForURL("/");
+    await page.waitForURL("**/settings");
     await gotoHydrated(page, "/settings");
+    await page.getByRole("button", { name: "キャラクター", exact: true }).click();
     await page
       .getByLabel("Lodestone の URL または ID")
       .fill("https://jp.finalfantasyxiv.com/lodestone/character/15022394/");
@@ -59,12 +60,23 @@ test.describe("character settings", () => {
     page,
   }) => {
     await page.request.post(`${mock}/_e2e/character`, { data: { introduction: "" } });
-    await gotoHydrated(page, "/login");
+    await gotoHydrated(page, "/login?next=%2Fsettings");
     await page.getByLabel("開発用ログイン").fill(`cs_${Date.now().toString(36)}`);
     await page.getByTestId("dev-login").getByRole("button", { name: "ログイン" }).click();
-    await page.waitForURL("/");
+    await page.waitForURL("**/settings");
     await gotoHydrated(page, "/settings");
-    await page.getByRole("radio", { name: "名前とワールドで検索" }).check();
+    await page.getByRole("button", { name: "キャラクター", exact: true }).click();
+    const urlTab = page.getByRole("tab", { name: "URL・ID", exact: true });
+    const searchTab = page.getByRole("tab", { name: "名前・ワールド", exact: true });
+    await expect(urlTab).toHaveAttribute("aria-selected", "true");
+    await urlTab.focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(searchTab).toBeFocused();
+    await expect(searchTab).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByLabel("Lodestone の URL または ID")).toHaveCount(0);
+    await page.keyboard.press("Home");
+    await expect(urlTab).toHaveAttribute("aria-selected", "true");
+    await searchTab.click();
     await page.getByLabel("キャラクター名", { exact: true }).fill("Unknown Character");
     await page.getByLabel("ワールド", { exact: true }).fill("Tiamat");
     await page.getByRole("button", { name: "キャラクターを登録", exact: true }).click();

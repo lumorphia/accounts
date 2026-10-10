@@ -26,6 +26,17 @@ const envSchema = z.object({
     .url()
     .startsWith("https://")
     .default("https://prismtone.lumorphia.com/settings/migration"),
+  /** 通常ログインの戻り先と、トップのセッション表示を許可する唯一のオリジン。 */
+  WEBSITE_ORIGIN: z
+    .string()
+    .url()
+    .startsWith("https://")
+    .default("https://lumorphia.com")
+    .refine((value) => {
+      const url = new URL(value);
+      return !url.username && !url.password && url.pathname === "/" && !url.search && !url.hash;
+    }, "must be an HTTPS origin")
+    .transform((value) => new URL(value).origin),
   AUTH_DISCORD_ID: z.string().optional(),
   AUTH_DISCORD_SECRET: z.string().optional(),
   AUTH_GOOGLE_ID: z.string().optional(),
