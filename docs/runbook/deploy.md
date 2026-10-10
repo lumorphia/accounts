@@ -4,7 +4,7 @@
 
 ## 1. 配置と秘密
 
-`/srv/accounts` に公開判断を終えた main のコミットを配置する。Node のホストインストールは不要。Docker Compose v2 と既存の Caddy・doco-cd を使う。
+VPS の置き場所 (例: `/srv/accounts`、2026-10 は `~/srv/accounts`) に公開判断を終えた main の `compose.prod.yaml` と `.env.*` を置く (git で取ってこなくてよい。doco-cd に登録したあとは doco-cd が取ってくる)。Node のホストインストールは不要。Docker Compose v2 と既存の Caddy・doco-cd を使う。
 
 `.env.production.example` と `.env.backup.example` から、Git に入れない `.env.production` と `.env.backup` を作り、権限を600にする。`REPLACE_WITH` を全て置き換える。パスワードは URL の値としても安全なランダムな文字列を使い、`POSTGRES_PASSWORD` と `DATABASE_URL` を一致させる。AUTH_SECRET は32文字以上の本番専用値を生成し、復元時にも同じ値を使う。Prismtone の秘密を流用しない。
 
@@ -14,23 +14,14 @@
 
 ## 2. 共有する Caddy
 
-既存の Caddy を `lumorphia-edge` に接続する永続的な Compose override を VPS 側で用意する。既存の default network は残す。`docker network connect` だけでは Caddy 再作成時に失われる。
+80/443 を持つ Caddy は lumorphia/prismtone のもの 1 つだけで、accounts もそこで受ける (prismtone の docs/runbook/deploy.md「同じ VPS のほかのサービスを Caddy に載せる」)。
 
-```yaml
-services:
-  proxy:
-    networks:
-      - default
-      - lumorphia-edge
-networks:
-  lumorphia-edge:
-    external: true
-    name: lumorphia-edge
-```
+- 共有のネットワーク `lumorphia-edge` を `docker network create lumorphia-edge` で作る。accounts の web はそこに `accounts-web` として出る (`compose.prod.yaml`)
+- prismtone の proxy は `lumorphia-edge` にもつながり、`CADDY_SITES_DIR` の `*.caddy` を読み込む。そこに `docker/Caddyfile.accounts` を `accounts.caddy` として置く
+- 証明書は prismtone の Caddy にある Cloudflare Origin CA の 1 枚 (`lumorphia.com` と `*.lumorphia.com`) をそのまま使う。Cloudflare の IP 以外を拒む `cloudflare_only` も prismtone の Caddyfile のものを使う
+- Cloudflare の DNS proxy と Full (strict) を確かめる。直通が拒否されるまでは `CLIENT_IP_HEADER=cf-connecting-ip` を使わない
 
-network は初回に `docker network create lumorphia-edge` で作る。`docker/Caddyfile.accounts` を既存 Caddyfile へ import し、accounts 用の Cloudflare Origin CA 証明書と鍵を既存 proxy に read-only mount する。Cloudflare の DNS proxy と Full (strict)、VPS の接続元を Cloudflare の公式 IP に絞る既存のルールを確認する。CF の IP 制限は accounts の host にも適用する。直通が拒否されるまでは `CLIENT_IP_HEADER=cf-connecting-ip` を使わない。
-
-Caddy の設定を `caddy validate` で確認してから reload する。公開判断前は Cloudflare Access または Caddy の制限で運営者だけがアクセスできる状態を保つ。accounts 側は80/443も3100もDBのポートもホストに公開しない。Prismtone 側の Caddy の変更・reload は、その運用手順に従って別に実施する。
+Caddy の設定は `caddy validate` で確かめてから reload する。公開判断前は Cloudflare Access で運営者だけがアクセスできる状態を保つ (2026-10 は Zero Trust の Self-hosted アプリケーションで、運営者のメールアドレスだけを Allow)。accounts 側は 80/443 も 3100 も DB のポートもホストに公開しない。
 
 ## 3. ビルドと起動
 

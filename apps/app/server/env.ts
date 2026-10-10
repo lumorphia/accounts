@@ -25,7 +25,7 @@ const envSchema = z.object({
     .string()
     .url()
     .startsWith("https://")
-    .default("https://prismtone.lumorphia.com/settings/migration"),
+    .default("https://prismtone.lumorphia.com/login"),
   /** 通常ログインの戻り先と、トップのセッション表示を許可する唯一のオリジン。 */
   WEBSITE_ORIGIN: z
     .string()
