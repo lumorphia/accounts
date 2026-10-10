@@ -120,9 +120,12 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
             return reply.code(404).send();
           const bytes = await api.storage.get(key);
           if (!bytes) return reply.code(404).send();
+          // サービス (Prismtone など) の画面から <img> で読む。helmet の既定 (same-origin) のままだと
+          // ブラウザが読ませない。本番の R2 の公開ドメインもこのヘッダーを付けない
           return reply
             .type("image/webp")
             .header("cache-control", "public, max-age=31536000, immutable")
+            .header("cross-origin-resource-policy", "cross-origin")
             .send(Buffer.from(bytes));
         });
       }
