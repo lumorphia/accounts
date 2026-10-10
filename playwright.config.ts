@@ -1,0 +1,133 @@
+import { createHash, X509Certificate } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+import { defineConfig } from "@playwright/test";
+import { DEFAULT_DATABASE_URL, e2eDatabaseUrl } from "./e2e/database.ts";
+
+const PORT = Number(process.env.E2E_PORT ?? 3443);
+const HOST = "accounts.lumorphia.test";
+const OAUTH_PORT = Number(process.env.MOCK_OAUTH_PORT ?? 3401);
+const MISSKEY_PORT = Number(process.env.MOCK_MISSKEY_PORT ?? 3399);
+const MASTODON_PORT = Number(process.env.MOCK_MASTODON_PORT ?? 3402);
+const LODESTONE_PORT = Number(process.env.MOCK_LODESTONE_PORT ?? 3404);
+const TLS = new URL(".data/tls/", import.meta.url).pathname;
+/**
+ * 手元専用の証明書の公開鍵 (SPKI) の SHA-256。Chromium にこの鍵を信頼させ、証明書のエラーを起こさない。
+ * ignoreHTTPSErrors だと、新しい接続のたびに「証明書のエラー → 無視して再開」を通り、CSS などの
+ * 読み込みがときどき net::ERR_TOO_MANY_RETRIES で失敗して、スタイルの無い画面になった
+ * (brand.spec.ts の幅の検査がときどき落ちた)。証明書がまだ無いときだけ今までどおり無視する
+ */
+const CERT_SPKI = existsSync(`${TLS}cert.pem`)
+  ? createHash("sha256")
+      .update(
+        new X509Certificate(readFileSync(`${TLS}cert.pem`)).publicKey.export({
+          type: "spki",
+          format: "der",
+        }),
+      )
+      .digest("base64")
+  : null;
+
+/**
+ * E2E は https で回す (ADR-0002、ADR-0003)。証明書は scripts/dev-certs.sh が作る手元専用の CA のもの。
+ * *.lumorphia.test は Chromium の起動オプションで 127.0.0.1 に向ける (/etc/hosts を触らない)
+ */
+export default defineConfig({
+  testDir: "./e2e",
+  // OAuth のモックはプロバイダーごとに 1 人のプロフィールを共有する。ファイル間も順に回す。
+  workers: 1,
+  timeout: 30_000,
+  retries: process.env.CI ? 1 : 0,
+  reporter: process.env.CI ? "github" : "list",
+  use: {
+    baseURL: `https://${HOST}:${PORT}`,
+    locale: "ja-JP",
+    trace: "retain-on-failure",
+    // 手元専用の CA はブラウザが知らないので、証明書の公開鍵を信頼させる (CERT_SPKI)
+    ignoreHTTPSErrors: CERT_SPKI === null,
+    launchOptions: {
+      args: [
+        `--host-resolver-rules=MAP *.lumorphia.test 127.0.0.1, MAP lumorphia.test 127.0.0.1`,
+        ...(CERT_SPKI ? [`--ignore-certificate-errors-spki-list=${CERT_SPKI}`] : []),
+      ],
+    },
+  },
+  projects: [{ name: "chromium", use: { browserName: "chromium" } }],
+  webServer: [
+    {
+      // トップ (lumorphia/website)。手元は隣のディレクトリ、CI は WEBSITE_DIR にチェックアウトしたもの
+      command: `node ${process.env.WEBSITE_DIR ?? "../website"}/scripts/serve.mjs`,
+      url: "https://127.0.0.1:3444/",
+      ignoreHTTPSErrors: true,
+      reuseExistingServer: !process.env.CI,
+      env: {
+        PORT: "3444",
+        ACCOUNTS_ORIGIN: `https://${HOST}:${PORT}`,
+        DEV_TLS_CERT: `${TLS}cert.pem`,
+        DEV_TLS_KEY: `${TLS}key.pem`,
+      },
+    },
+    {
+      command: "node e2e/mock-lodestone.ts",
+      url: `http://127.0.0.1:${LODESTONE_PORT}/health`,
+      reuseExistingServer: !process.env.CI,
+      env: { MOCK_LODESTONE_PORT: String(LODESTONE_PORT) },
+    },
+    {
+      command: "node e2e/mock-misskey.ts",
+      url: `http://127.0.0.1:${MISSKEY_PORT}/api/meta`,
+      reuseExistingServer: !process.env.CI,
+      env: { MOCK_MISSKEY_PORT: String(MISSKEY_PORT) },
+    },
+    {
+      command: "node e2e/mock-mastodon.ts",
+      url: `http://127.0.0.1:${MASTODON_PORT}/health`,
+      reuseExistingServer: !process.env.CI,
+      env: { MOCK_MASTODON_PORT: String(MASTODON_PORT) },
+    },
+    {
+      command: "node e2e/mock-oauth.ts",
+      url: `http://127.0.0.1:${OAUTH_PORT}/health`,
+      reuseExistingServer: !process.env.CI,
+      env: { MOCK_OAUTH_PORT: String(OAUTH_PORT) },
+    },
+    {
+      // DB の用意 → ビルド → 本番と同じ起動 (NODE_ENV=test)
+      command:
+        "node e2e/prepare-db.ts && pnpm --filter @lumorphia-accounts/app build && pnpm --filter @lumorphia-accounts/app exec node --import ../../e2e/oidc-network.ts server/index.ts",
+      // worker は E2E の各テストが操作する。web の起動待ちは本人 API で見る。
+      url: `https://127.0.0.1:${PORT}/api/me`,
+      ignoreHTTPSErrors: true,
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+      env: {
+        FEATURE_ACCOUNT_LIFECYCLE: "1",
+        FEATURE_LODESTONE: "1",
+        LODESTONE_BASE_URL: `http://127.0.0.1:${LODESTONE_PORT}`,
+        LODESTONE_USER_AGENT: "lumorphia-accounts/e2e",
+        MOCK_OIDC_PORT: process.env.MOCK_OIDC_PORT ?? "3403",
+        NODE_ENV: "test",
+        PORT: String(PORT),
+        HOST: "127.0.0.1",
+        DATABASE_URL: e2eDatabaseUrl(),
+        E2E_BASE_DATABASE_URL: process.env.DATABASE_URL ?? DEFAULT_DATABASE_URL,
+        DEV_TLS_CERT: `${TLS}cert.pem`,
+        DEV_TLS_KEY: `${TLS}key.pem`,
+        API_RATE_LIMIT_DISABLED: "1",
+        AUTH_SECRET: "test-e2e-secret-test-e2e-secret-1234",
+        AUTH_BASE_URL: `https://${HOST}:${PORT}`,
+        WEBSITE_ORIGIN: "https://lumorphia.test:3444",
+        PUBLIC_IMAGE_BASE_URL: `https://${HOST}:${PORT}/api/media`,
+        AUTH_DISCORD_ID: "test-mock-discord-id",
+        AUTH_DISCORD_SECRET: "test-mock-discord-secret",
+        AUTH_GOOGLE_ID: "test-mock-google-id",
+        AUTH_GOOGLE_SECRET: "test-mock-google-secret",
+        AUTH_X_ID: "test-mock-x-id",
+        AUTH_X_SECRET: "test-mock-x-secret",
+        OAUTH_MOCK_BASE_URL: `http://127.0.0.1:${OAUTH_PORT}`,
+        MIAUTH_DEV_HOSTS: `127.0.0.1:${MISSKEY_PORT}`,
+        MASTODON_DEV_HOSTS: `127.0.0.1:${MASTODON_PORT}`,
+        LOG_LEVEL: "warn",
+      },
+    },
+  ],
+});

@@ -1,0 +1,9 @@
+# 公開判断を終えて main と固定の ACCOUNTS_TAG を選んだ後に登録する。
+name: accounts
+reference: main
+compose_files:
+  - compose.prod.yaml
+force_image_pull: true
+prune_images: true
+remove_orphans: false
+timeout: 900

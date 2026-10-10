@@ -1,0 +1,21 @@
+# ADR の一覧
+
+| 番号                                                        | 決めたこと                                                                          |
+| ----------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| [0001](0001-record-architecture-decisions.md)               | ADR を使う                                                                          |
+| [0002](0002-stack-hosting-and-visibility.md)                | prismtone と同じ構成・同じ VPS、リポジトリは public                                 |
+| [0003](0003-oidc-provider-better-auth.md)                   | 発行元は Better Auth の oauth-provider、サービスは generic-oauth                    |
+| [0004](0004-logout-confirmation-form-csp.md)                | OIDC のログアウト確認ページで登録済みの戻り先を form-action に足す                  |
+| [0005](0005-lodestone-character-source.md)                  | Lodestone のキャラクター取得を accounts に置く                                      |
+| [0006](0006-character-ownership-and-jobs.md)                | キャラクターの所有と再同期の要求を DB で確定する                                    |
+| [0007](0007-character-api-and-shared-pacing.md)             | キャラクター API の権限と Lodestone の取得順を共有する                              |
+| [0008](0008-account-lifecycle-outbox.md)                    | 退会・復旧・物理削除を永続的な送信待ちの表で配送する (復旧の契機は 0011 で置き換え) |
+| [0009](0009-legacy-ledger-and-handle-reservations.md)       | 旧台帳の取り込み・handle の本人用予約・移行完了を原子的に扱う                       |
+| [0010](0010-production-and-legal-consent.md)                | 本番の分離、規約の同意と worker の監視                                              |
+| [0011](0011-explicit-recovery.md)                           | 退会からの復旧は、ログインではなく本人の操作で行う                                  |
+| [0012](0012-service-identity-and-authorize-side-effects.md) | サービスは metadata で見分け、状態の変更は認可の入口で行う                          |
+| [0013](0013-characters-for-services-and-migration.md)       | サービスに未認証のキャラクターも渡し、引き継ぎでキャラクターを取り込む              |
+
+| [0014](0014-brand-and-website-navigation.md) | ブランド画面とトップへのログイン導線、表示用セッションの限定共有 |
+
+本文中の「prismtone ADR-NNNN」は lumorphia/prismtone の ADR を指す。全体の計画は [plan.md](../plan.md)。

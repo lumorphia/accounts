@@ -1,0 +1,1104 @@
+<!doctype html>
+<html lang="ja" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lumorphia — デザイン試作</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f7f8;
+        --panel: #fff;
+        --ink: #252d35;
+        --muted: #63717a;
+        --line: #dee4e6;
+        --accent: #315e65;
+        --hover: #eaf0f1;
+        --soft: #edf2f2;
+        --danger: #a43d42;
+        --shadow: 0 16px 50px #253d4507;
+      }
+      [data-theme="dark"] {
+        color-scheme: dark;
+        --bg: #171e22;
+        --panel: #20292e;
+        --ink: #e6edef;
+        --muted: #a0b0b7;
+        --line: #3c4a51;
+        --accent: #a3cbd0;
+        --hover: #32444a;
+        --soft: #293b40;
+        --danger: #f2a1a5;
+        --shadow: none;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: "Noto Sans JP", "Yu Gothic", Meiryo, system-ui, sans-serif;
+        font-size: 14px;
+        line-height: 1.7;
+      }
+      button,
+      input {
+        font: inherit;
+      }
+      button,
+      a,
+      input {
+        -webkit-tap-highlight-color: transparent;
+      }
+      button {
+        cursor: pointer;
+      }
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+      button:focus-visible,
+      a:focus-visible,
+      input:focus-visible,
+      summary:focus-visible {
+        outline: 3px solid var(--accent);
+        outline-offset: 4px;
+      }
+      button {
+        color: inherit;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      .preview {
+        min-height: 48px;
+        padding: 8px 28px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        background: var(--panel);
+        border-bottom: 1px solid var(--line);
+      }
+      .preview-label {
+        color: var(--muted);
+        font-size: 11px;
+        letter-spacing: 0.08em;
+      }
+      .tools {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .tools button {
+        border: 0;
+        background: none;
+        border-radius: 5px;
+        padding: 5px 12px;
+        font-size: 12px;
+      }
+      .tools button[aria-pressed="true"] {
+        background: var(--soft);
+        color: var(--accent);
+      }
+      .tools .theme {
+        border: 1px solid var(--line);
+        margin-left: 10px;
+      }
+      .shell {
+        max-width: 1120px;
+        margin: auto;
+        padding: 0 40px;
+      }
+      header {
+        height: 106px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .mark {
+        width: 31px;
+        height: 34px;
+        color: var(--accent);
+      }
+      .wordmark {
+        font-family: Arial, system-ui, sans-serif;
+        font-size: 25px;
+        font-weight: 500;
+        letter-spacing: -1px;
+        line-height: 1;
+      }
+      .header-account {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 12px;
+      }
+      .avatar {
+        display: grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: var(--soft);
+        color: var(--accent);
+        font-family: Arial, sans-serif;
+        font-weight: bold;
+      }
+      .account-label {
+        margin-left: 18px;
+        padding-left: 18px;
+        border-left: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 11px;
+        letter-spacing: 0.08em;
+      }
+      .login-stage {
+        min-height: 660px;
+        display: grid;
+        grid-template-columns: 1fr 440px;
+        align-items: center;
+        gap: 72px;
+        padding: 18px 0 66px;
+      }
+      .intro {
+        align-self: center;
+        padding-bottom: 24px;
+      }
+      .eyebrow {
+        margin: 0 0 22px;
+        color: var(--accent);
+        font-size: 11px;
+        letter-spacing: 0.17em;
+        font-family: Arial, sans-serif;
+      }
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+      .intro h1 {
+        font-size: 36px;
+        font-weight: 500;
+        line-height: 1.65;
+        letter-spacing: 0.035em;
+      }
+      .intro p {
+        margin-top: 22px;
+        color: var(--muted);
+        line-height: 2;
+      }
+      .intro-art {
+        height: 160px;
+        margin: 32px 0;
+        position: relative;
+        overflow: hidden;
+        max-width: 330px;
+      }
+      .intro-art svg {
+        width: 100%;
+        height: 100%;
+        color: var(--accent);
+      }
+      .services {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        font-size: 13px;
+      }
+      .services span:first-child {
+        font-family: Georgia, serif;
+        font-style: italic;
+        font-size: 21px;
+      }
+      .services span:last-child {
+        font-family: Arial, sans-serif;
+        font-size: 18px;
+        letter-spacing: -0.5px;
+      }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        box-shadow: var(--shadow);
+      }
+      .login-panel {
+        padding: 36px;
+      }
+      .login-panel h2 {
+        font-size: 23px;
+        font-weight: 600;
+        letter-spacing: 0.015em;
+      }
+      .sub {
+        color: var(--muted);
+        font-size: 12px;
+        margin-top: 10px;
+        line-height: 1.9;
+      }
+      .destination {
+        margin: 24px 0;
+        border-left: 2px solid var(--accent);
+        padding: 1px 0 1px 12px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .destination strong {
+        color: var(--ink);
+        font-weight: 500;
+      }
+      .providers {
+        display: grid;
+        gap: 10px;
+      }
+      .provider {
+        width: 100%;
+        min-height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        font-weight: 500;
+        position: relative;
+      }
+      .provider:hover {
+        background: var(--hover);
+        border-color: var(--accent);
+      }
+      .provider svg,
+      .provider .provider-icon {
+        position: absolute;
+        left: 18px;
+        width: 20px;
+        height: 20px;
+        display: grid;
+        place-items: center;
+        font-family: Arial, sans-serif;
+        font-size: 20px;
+      }
+      details {
+        margin-top: 24px;
+        padding-top: 18px;
+        border-top: 1px solid var(--line);
+      }
+      summary {
+        cursor: pointer;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .federated {
+        display: grid;
+        gap: 10px;
+        padding-top: 16px;
+      }
+      .federated label {
+        font-size: 12px;
+      }
+      .federated-row {
+        display: flex;
+        gap: 8px;
+        margin-top: 5px;
+      }
+      .federated-row input {
+        min-width: 0;
+        width: 100%;
+      }
+      .federated-row button {
+        white-space: nowrap;
+      }
+      .agreement {
+        font-size: 11px;
+        color: var(--muted);
+        line-height: 1.9;
+        margin-top: 26px;
+      }
+      .text-link {
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+      footer {
+        padding: 26px 0;
+        border-top: 1px solid var(--line);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: var(--muted);
+        font-size: 11px;
+        gap: 20px;
+      }
+      .footer-links {
+        display: flex;
+        gap: 22px;
+        flex-wrap: wrap;
+      }
+      .settings-stage {
+        padding: 26px 0 70px;
+      }
+      .page-title h1 {
+        font-size: 28px;
+        font-weight: 500;
+        letter-spacing: 0.03em;
+      }
+      .page-title p {
+        color: var(--muted);
+        font-size: 13px;
+        margin-top: 8px;
+      }
+      .settings-layout {
+        display: grid;
+        grid-template-columns: 210px minmax(0, 1fr);
+        gap: 42px;
+        margin-top: 38px;
+      }
+      .side-user {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 12px 25px;
+      }
+      .side-user .avatar {
+        width: 42px;
+        height: 42px;
+      }
+      .side-user strong {
+        font-size: 13px;
+        font-weight: 500;
+      }
+      .side-user small {
+        display: block;
+        color: var(--muted);
+        font-family: Arial, sans-serif;
+        font-size: 12px;
+      }
+      .settings-nav {
+        display: grid;
+        gap: 5px;
+      }
+      .settings-nav button {
+        padding: 11px 14px;
+        text-align: left;
+        border: 0;
+        background: none;
+        border-radius: 6px;
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .settings-nav button[aria-pressed="true"] {
+        color: var(--accent);
+        background: var(--soft);
+        font-weight: 600;
+      }
+      .settings-nav svg {
+        width: 17px;
+        height: 17px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 1.5;
+        flex-shrink: 0;
+      }
+      .return {
+        display: inline-flex;
+        gap: 9px;
+        color: var(--muted);
+        font-size: 12px;
+        margin: 32px 14px 0;
+      }
+      .section {
+        padding: 30px 32px;
+      }
+      .section h2 {
+        font-size: 19px;
+        font-weight: 600;
+      }
+      .section-heading {
+        padding-bottom: 25px;
+        margin-bottom: 26px;
+        border-bottom: 1px solid var(--line);
+      }
+      .profile-picture {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        margin-bottom: 28px;
+      }
+      .profile-picture .avatar {
+        width: 72px;
+        height: 72px;
+        font-size: 26px;
+        font-weight: 500;
+        background: linear-gradient(135deg, var(--soft), var(--hover));
+      }
+      .secondary {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        padding: 8px 14px;
+        font-size: 12px;
+      }
+      .secondary:hover {
+        background: var(--hover);
+      }
+      .helper {
+        color: var(--muted);
+        font-size: 11px;
+        margin-top: 7px;
+      }
+      .field {
+        margin-top: 24px;
+      }
+      .field label {
+        display: block;
+        font-size: 13px;
+        font-weight: 500;
+        margin-bottom: 8px;
+      }
+      input {
+        width: 100%;
+        padding: 11px 13px;
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        background: var(--panel);
+        color: var(--ink);
+      }
+      .handle-input {
+        display: flex;
+        align-items: center;
+        border: 1px solid var(--line);
+        border-radius: 5px;
+      }
+      .handle-input span {
+        color: var(--muted);
+        padding-left: 13px;
+      }
+      .handle-input input {
+        border: 0;
+      }
+      .notice {
+        margin-top: 30px;
+        padding: 14px 16px;
+        background: var(--soft);
+        border-radius: 5px;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .notice svg {
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+        margin-top: 2px;
+        stroke: var(--accent);
+        fill: none;
+        stroke-width: 1.5;
+      }
+      .form-actions {
+        margin-top: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      .primary {
+        border: 1px solid var(--accent);
+        background: var(--accent);
+        color: var(--panel);
+        border-radius: 5px;
+        padding: 10px 24px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      [data-theme="dark"] .primary {
+        color: #17262a;
+      }
+      .primary:hover {
+        filter: brightness(0.93);
+      }
+      .save-status {
+        font-size: 12px;
+        color: var(--accent);
+      }
+      .list-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 20px 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .list-row:last-child {
+        border: 0;
+      }
+      .list-row strong {
+        display: block;
+        font-weight: 500;
+      }
+      .badge {
+        color: var(--accent);
+        font-size: 11px;
+        background: var(--soft);
+        border-radius: 4px;
+        padding: 4px 9px;
+        white-space: nowrap;
+      }
+      .danger {
+        color: var(--danger);
+      }
+      .toast {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        max-width: calc(100% - 32px);
+        width: max-content;
+        padding: 12px 20px;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        box-shadow: var(--shadow);
+        border-radius: 8px;
+        z-index: 10;
+        font-size: 13px;
+      }
+      @media (min-width: 1500px) {
+        .login-stage {
+          min-height: 740px;
+        }
+      }
+      @media (max-width: 900px) {
+        .login-stage {
+          gap: 32px;
+          grid-template-columns: 1fr 400px;
+        }
+        .intro h1 {
+          font-size: 29px;
+        }
+        .settings-layout {
+          grid-template-columns: 180px minmax(0, 1fr);
+          gap: 24px;
+        }
+      }
+      @media (max-width: 720px) {
+        .preview {
+          padding: 10px 16px;
+          flex-wrap: wrap;
+          gap: 7px;
+        }
+        .preview-label {
+          width: 100%;
+          font-size: 10px;
+        }
+        .tools {
+          width: 100%;
+        }
+        .tools .theme {
+          margin-left: auto;
+        }
+        .tools button {
+          padding: 5px 9px;
+        }
+        .shell {
+          padding: 0 22px;
+        }
+        header {
+          height: 88px;
+        }
+        .wordmark {
+          font-size: 23px;
+        }
+        .account-label {
+          display: none;
+        }
+        .header-account span:last-child {
+          display: none;
+        }
+        .login-stage {
+          display: block;
+          min-height: auto;
+          padding: 16px 0 40px;
+        }
+        .intro {
+          padding: 0 0 28px;
+        }
+        .intro h1 {
+          font-size: 27px;
+          line-height: 1.5;
+        }
+        .intro h1 br {
+          display: none;
+        }
+        .intro .eyebrow {
+          margin-bottom: 12px;
+          font-size: 10px;
+        }
+        .intro p {
+          margin-top: 12px;
+          font-size: 12px;
+        }
+        .intro-art,
+        .services {
+          display: none;
+        }
+        .login-panel {
+          padding: 26px 24px;
+        }
+        .login-panel h2 {
+          font-size: 21px;
+        }
+        footer {
+          flex-direction: column;
+          align-items: flex-start;
+          padding: 22px 0;
+          gap: 12px;
+        }
+        .footer-links {
+          gap: 16px;
+        }
+        .settings-stage {
+          padding: 12px 0 40px;
+        }
+        .page-title h1 {
+          font-size: 25px;
+        }
+        .settings-layout {
+          display: block;
+          margin-top: 24px;
+        }
+        .side-user {
+          display: none;
+        }
+        .settings-nav {
+          display: flex;
+          overflow-x: auto;
+          padding-bottom: 10px;
+          margin-bottom: 15px;
+        }
+        .settings-nav button {
+          white-space: nowrap;
+          flex-shrink: 0;
+          padding: 9px 12px;
+        }
+        .settings-nav svg {
+          display: none;
+        }
+        .return {
+          margin: 0 0 24px;
+        }
+        .section {
+          padding: 24px 20px;
+        }
+        .section h2 {
+          font-size: 18px;
+        }
+        .list-row {
+          gap: 12px;
+        }
+        .form-actions {
+          flex-wrap: wrap;
+        }
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        button,
+        a {
+          transition:
+            background 0.15s,
+            color 0.15s,
+            border-color 0.15s;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="preview" aria-label="試作の表示切り替え">
+      <span class="preview-label">DESIGN STUDY 01 · 仮データを使った画面試作</span>
+      <div class="tools">
+        <button type="button" data-view="login" aria-pressed="true">ログイン</button>
+        <button type="button" data-view="settings" aria-pressed="false">設定</button>
+        <button type="button" class="theme" aria-pressed="false">ダーク表示</button>
+      </div>
+    </div>
+    <div class="shell">
+      <header>
+        <a class="brand" href="#login" aria-label="Lumorphia ログイン画面">
+          <svg class="mark" viewBox="0 0 32 36" fill="none" aria-hidden="true">
+            <path
+              d="M25 7.5A13 13 0 1 0 25 28.5"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+            />
+            <path
+              d="M11 9v17h13"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path d="M26 14v8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+          </svg>
+          <span class="wordmark">Lumorphia</span>
+          <span class="account-label">アカウント</span>
+        </a>
+        <div class="header-account" id="header-account" hidden>
+          <span class="avatar" aria-hidden="true">M</span><span data-display-name>Mizuki</span>
+        </div>
+      </header>
+      <main id="login-view" class="login-stage">
+        <div class="intro">
+          <div class="eyebrow">LUMORPHIA ACCOUNT</div>
+          <h1>いつもの自分で、<br />それぞれの場所へ。</h1>
+          <p>Prismtone、Scenoteで使う<br />プロフィールとログインを、ひとつに。</p>
+          <div class="intro-art" aria-hidden="true">
+            <svg viewBox="0 0 330 160" fill="none">
+              <path d="M3 80h68m188 0h68" stroke="currentColor" opacity=".2" />
+              <circle cx="165" cy="80" r="57" stroke="currentColor" opacity=".13" />
+              <path d="M204 38a57 57 0 1 0 0 84" stroke="currentColor" opacity=".45" />
+              <path d="M204 52a42 42 0 1 0 0 56" stroke="currentColor" opacity=".2" />
+              <path d="M148 53v54h38" stroke="currentColor" stroke-width="2" />
+              <path d="M213 65v30" stroke="currentColor" stroke-width="2" />
+              <circle cx="71" cy="80" r="3" fill="currentColor" opacity=".4" />
+              <circle cx="259" cy="80" r="3" fill="currentColor" opacity=".4" />
+            </svg>
+          </div>
+          <div class="services" aria-label="Lumorphia のサービス">
+            <span>Prismtone</span><span>Scenote</span>
+          </div>
+        </div>
+        <section class="panel login-panel" aria-labelledby="login-title">
+          <h2 id="login-title">Lumorphia にログイン</h2>
+          <p class="sub">ログインに使うアカウントを選んでください。</p>
+          <div class="destination">ログイン後は <strong>Prismtone</strong> に戻ります</div>
+          <div class="providers">
+            <button class="provider" type="button" data-provider="Discord">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path
+                  d="M19.5 5.5a18 18 0 0 0-4.4-1.4l-.6 1.2a16 16 0 0 0-5 0l-.6-1.2a18 18 0 0 0-4.4 1.4C1.8 9.6 1 13.6 1.5 17.5a18 18 0 0 0 5.4 2.7L8 18.4l-1.7-.9.4-.3a15 15 0 0 0 10.6 0l.4.3-1.7.9 1.1 1.8a18 18 0 0 0 5.4-2.7c.6-4.6-.8-8.5-3-12ZM8.5 14.9c-1 0-1.7-.9-1.7-2s.7-2 1.7-2 1.7.9 1.7 2-.7 2-1.7 2Zm7 0c-1 0-1.7-.9-1.7-2s.7-2 1.7-2 1.7.9 1.7 2-.7 2-1.7 2Z"
+                /></svg
+              >Discord でログイン
+            </button>
+            <button class="provider" type="button" data-provider="Google">
+              <span class="provider-icon" aria-hidden="true">G</span>Google でログイン
+            </button>
+            <button class="provider" type="button" data-provider="X">
+              <span class="provider-icon" aria-hidden="true">𝕏</span>X でログイン
+            </button>
+          </div>
+          <details>
+            <summary>Misskey・Mastodon でログイン</summary>
+            <div class="federated">
+              <form data-federated="Misskey">
+                <label for="misskey">Misskey のサーバー</label>
+                <div class="federated-row">
+                  <input id="misskey" placeholder="misskey.io" required /><button
+                    class="secondary"
+                    type="submit"
+                  >
+                    ログイン
+                  </button>
+                </div>
+              </form>
+              <form data-federated="Mastodon">
+                <label for="mastodon">Mastodon のサーバー</label>
+                <div class="federated-row">
+                  <input id="mastodon" placeholder="mastodon.social" required /><button
+                    class="secondary"
+                    type="submit"
+                  >
+                    ログイン
+                  </button>
+                </div>
+              </form>
+            </div>
+          </details>
+          <p class="agreement">
+            初めての方も、同じ方法で始められます。<br />登録時に<span class="text-link"
+              >利用規約</span
+            >と<span class="text-link">プライバシーポリシー</span>をご確認いただきます。
+          </p>
+        </section>
+      </main>
+      <main id="settings-view" class="settings-stage" hidden>
+        <div class="page-title">
+          <h1>アカウント設定</h1>
+          <p>Lumorphia のサービスで使う情報を管理します。</p>
+        </div>
+        <div class="settings-layout">
+          <aside aria-label="設定メニュー">
+            <div class="side-user">
+              <span class="avatar" aria-hidden="true">M</span>
+              <div>
+                <strong data-display-name>Mizuki</strong><small data-display-handle>@mizuki</small>
+              </div>
+            </div>
+            <nav class="settings-nav">
+              <button type="button" data-section="profile" aria-pressed="true">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="7" r="4" />
+                  <path d="M4 21v-2a8 8 0 0 1 16 0v2" /></svg
+                >プロフィール
+              </button>
+              <button type="button" data-section="connections" aria-pressed="false">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="3" y="10" width="18" height="11" rx="2" />
+                  <path d="M7 10V7a5 5 0 0 1 10 0v3M12 14v3" /></svg
+                >ログイン方法
+              </button>
+              <button type="button" data-section="characters" aria-pressed="false">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="m12 3 8 5v8l-8 5-8-5V8Z" />
+                  <path d="m4 8 8 5 8-5m-8 5v8" /></svg
+                >キャラクター
+              </button>
+              <button type="button" data-section="account" aria-pressed="false">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="12" r="8" />
+                  <path d="M12 7v6m0 3v1" /></svg
+                >アカウント管理
+              </button>
+            </nav>
+            <a href="#return" class="return">← Prismtone に戻る</a>
+          </aside>
+          <div>
+            <section class="panel section" data-panel="profile" aria-labelledby="profile-title">
+              <div class="section-heading">
+                <h2 id="profile-title">プロフィール</h2>
+                <p class="sub">あなたの名前とアイコンを設定します。</p>
+              </div>
+              <form id="profile-form">
+                <div class="profile-picture">
+                  <span class="avatar" id="profile-avatar" aria-hidden="true">M</span>
+                  <div>
+                    <button type="button" class="secondary" id="change-icon">アイコンを変更</button>
+                    <p class="helper">連携しているアカウントのアイコンを使えます。</p>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="display-name">表示名</label
+                  ><input id="display-name" value="Mizuki" required maxlength="50" />
+                  <p class="helper">サービス内で表示される名前です。</p>
+                </div>
+                <div class="field">
+                  <label for="handle">ハンドル</label>
+                  <div class="handle-input">
+                    <span aria-hidden="true">@</span
+                    ><input
+                      id="handle"
+                      value="mizuki"
+                      required
+                      pattern="[a-z0-9_]{3,20}"
+                      title="半角英小文字・数字・アンダースコアで3〜20文字"
+                    />
+                  </div>
+                  <p class="helper">
+                    半角英小文字・数字・アンダースコアで3〜20文字。変更後30日間は再変更できません。
+                  </p>
+                </div>
+                <div class="notice">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M12 10v7m0-10v1" /></svg
+                  ><span>表示名・ハンドル・アイコンは、Prismtone と Scenote で共通です。</span>
+                </div>
+                <div class="form-actions">
+                  <span class="save-status" role="status" id="save-status"></span
+                  ><button class="primary" type="submit">変更を保存</button>
+                </div>
+              </form>
+            </section>
+            <section class="panel section" data-panel="connections" hidden>
+              <div class="section-heading">
+                <h2>ログイン方法</h2>
+                <p class="sub">Lumorphia にログインするアカウントを管理します。</p>
+              </div>
+              <div class="list-row">
+                <div>
+                  <strong>Discord</strong>
+                  <p class="helper">Mizuki · 連携済み</p>
+                </div>
+                <span class="badge">連携済み</span>
+              </div>
+              <div class="list-row">
+                <strong>Google</strong
+                ><button class="secondary" data-demo="Google の連携" type="button">連携する</button>
+              </div>
+              <div class="list-row">
+                <strong>X</strong
+                ><button class="secondary" data-demo="X の連携" type="button">連携する</button>
+              </div>
+              <div class="list-row">
+                <strong>Misskey / Mastodon</strong
+                ><button class="secondary" data-demo="サーバーの連携" type="button">
+                  連携する
+                </button>
+              </div>
+              <p class="helper">この画面の連携状態は試作用の仮データです。</p>
+            </section>
+            <section class="panel section" data-panel="characters" hidden>
+              <div class="section-heading">
+                <h2>キャラクター</h2>
+                <p class="sub">サービスで使うキャラクターを登録・確認します。</p>
+              </div>
+              <p>登録されているキャラクターはありません。</p>
+              <p class="sub">Lodestone のキャラクターページから登録できます。</p>
+              <div class="form-actions">
+                <button class="primary" type="button" data-demo="キャラクターの登録">
+                  キャラクターを登録
+                </button>
+              </div>
+            </section>
+            <section class="panel section" data-panel="account" hidden>
+              <div class="section-heading">
+                <h2>アカウント管理</h2>
+                <p class="sub">ログアウトと退会の手続きを確認できます。</p>
+              </div>
+              <div class="list-row">
+                <div>
+                  <strong>ログアウト</strong>
+                  <p class="helper">このブラウザからログアウトします。</p>
+                </div>
+                <button class="secondary" type="button" data-demo="ログアウト">ログアウト</button>
+              </div>
+              <div class="list-row">
+                <div>
+                  <strong>サービスから退会</strong>
+                  <p class="helper">退会するサービスを選びます。</p>
+                </div>
+                <button class="secondary" type="button" data-demo="サービスからの退会">
+                  確認する
+                </button>
+              </div>
+              <div class="list-row">
+                <div>
+                  <strong class="danger">Lumorphia から退会</strong>
+                  <p class="helper">Lumorphia とすべてのサービスが対象です。</p>
+                </div>
+                <button class="secondary danger" type="button" data-demo="Lumorphia からの退会">
+                  確認する
+                </button>
+              </div>
+            </section>
+          </div>
+        </div>
+      </main>
+      <footer>
+        <span>© Lumorphia</span>
+        <div class="footer-links">
+          <a href="#terms">利用規約</a><a href="#privacy">プライバシーポリシー</a
+          ><a href="#contact">お問い合わせ</a>
+        </div>
+      </footer>
+    </div>
+    <div class="toast" role="status" id="toast" hidden></div>
+    <script>
+      // 外部通信・永続化を行わない、デザイン確認専用の操作。
+      let toastTimer;
+      function notify(message) {
+        const el = document.querySelector("#toast");
+        el.textContent = message;
+        el.hidden = false;
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+          el.hidden = true;
+        }, 4500);
+      }
+      function showView(view) {
+        document.querySelector("#login-view").hidden = view !== "login";
+        document.querySelector("#settings-view").hidden = view !== "settings";
+        document.querySelector("#header-account").hidden = view !== "settings";
+        document
+          .querySelectorAll("[data-view]")
+          .forEach((el) => el.setAttribute("aria-pressed", String(el.dataset.view === view)));
+      }
+      document
+        .querySelectorAll("[data-view]")
+        .forEach((el) => el.addEventListener("click", () => showView(el.dataset.view)));
+      document.querySelector(".theme").addEventListener("click", (event) => {
+        const dark = document.documentElement.dataset.theme !== "dark";
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+        event.currentTarget.textContent = dark ? "ライト表示" : "ダーク表示";
+        event.currentTarget.setAttribute("aria-pressed", String(dark));
+      });
+      document.querySelectorAll("[data-section]").forEach((el) =>
+        el.addEventListener("click", () => {
+          document.querySelectorAll("[data-panel]").forEach((panel) => {
+            panel.hidden = panel.dataset.panel !== el.dataset.section;
+          });
+          document
+            .querySelectorAll("[data-section]")
+            .forEach((button) => button.setAttribute("aria-pressed", String(button === el)));
+        }),
+      );
+      document
+        .querySelectorAll("[data-provider]")
+        .forEach((el) =>
+          el.addEventListener("click", () =>
+            notify(`${el.dataset.provider} でログインする画面です。試作のため認証は行いません。`),
+          ),
+        );
+      document.querySelectorAll("[data-federated]").forEach((el) =>
+        el.addEventListener("submit", (event) => {
+          event.preventDefault();
+          notify(
+            `${el.dataset.federated} のログイン操作を確認しました。試作のため認証は行いません。`,
+          );
+        }),
+      );
+      document.querySelector("#profile-form").addEventListener("submit", (event) => {
+        event.preventDefault();
+        const name = document.querySelector("#display-name").value.trim();
+        if (!name) {
+          notify("表示名を入力してください。");
+          return;
+        }
+        const handle = document.querySelector("#handle").value;
+        document.querySelectorAll("[data-display-name]").forEach((el) => {
+          el.textContent = name;
+        });
+        document.querySelectorAll("[data-display-handle]").forEach((el) => {
+          el.textContent = `@${handle}`;
+        });
+        document.querySelectorAll(".avatar").forEach((el) => {
+          el.textContent = Array.from(name)[0].toUpperCase();
+        });
+        document.querySelector("#save-status").textContent = "試作内に反映しました";
+      });
+      document
+        .querySelector("#change-icon")
+        .addEventListener("click", () =>
+          notify("連携アカウントからアイコンを選ぶ操作です。試作のため画像は変更しません。"),
+        );
+      document
+        .querySelectorAll("[data-demo]")
+        .forEach((el) =>
+          el.addEventListener("click", () =>
+            notify(`${el.dataset.demo}の入口です。試作のため実行しません。`),
+          ),
+        );
+      document.querySelectorAll('a[href^="#"]').forEach((el) =>
+        el.addEventListener("click", (event) => {
+          event.preventDefault();
+          if (el.getAttribute("href") === "#login") {
+            showView("login");
+            return;
+          }
+          notify("試作のためページ移動は行いません。");
+        }),
+      );
+      if (new URLSearchParams(location.search).get("view") === "settings") showView("settings");
+      if (new URLSearchParams(location.search).get("theme") === "dark")
+        document.querySelector(".theme").click();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,11 @@
+# 変更したファイルだけ ESLint と Prettier をかける (数秒で終わる範囲に留める)
+pnpm exec lint-staged
+
+# staged の差分にシークレットが混ざっていないか 。CI の gitleaks が履歴全体を見る前に手元で止める。
+# バイナリは npm に無いので brew install gitleaks (https://github.com/gitleaks/gitleaks#installing)。
+# 無ければ警告して先へ進む (CI が最後の砦)
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks git --pre-commit --staged --redact --no-banner --verbose
+else
+  echo "warning: gitleaks が無いのでシークレットの検査を飛ばしました (brew install gitleaks)" >&2
+fi
