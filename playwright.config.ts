@@ -1,3 +1,5 @@
+import { createHash, X509Certificate } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
 import { defineConfig } from "@playwright/test";
 import { DEFAULT_DATABASE_URL, e2eDatabaseUrl } from "./e2e/database.ts";
 
@@ -8,6 +10,22 @@ const MISSKEY_PORT = Number(process.env.MOCK_MISSKEY_PORT ?? 3399);
 const MASTODON_PORT = Number(process.env.MOCK_MASTODON_PORT ?? 3402);
 const LODESTONE_PORT = Number(process.env.MOCK_LODESTONE_PORT ?? 3404);
 const TLS = new URL(".data/tls/", import.meta.url).pathname;
+/**
+ * 手元専用の証明書の公開鍵 (SPKI) の SHA-256。Chromium にこの鍵を信頼させ、証明書のエラーを起こさない。
+ * ignoreHTTPSErrors だと、新しい接続のたびに「証明書のエラー → 無視して再開」を通り、CSS などの
+ * 読み込みがときどき net::ERR_TOO_MANY_RETRIES で失敗して、スタイルの無い画面になった
+ * (brand.spec.ts の幅の検査がときどき落ちた)。証明書がまだ無いときだけ今までどおり無視する
+ */
+const CERT_SPKI = existsSync(`${TLS}cert.pem`)
+  ? createHash("sha256")
+      .update(
+        new X509Certificate(readFileSync(`${TLS}cert.pem`)).publicKey.export({
+          type: "spki",
+          format: "der",
+        }),
+      )
+      .digest("base64")
+  : null;
 
 /**
  * E2E は https で回す (ADR-0002、ADR-0003)。証明書は scripts/dev-certs.sh が作る手元専用の CA のもの。
@@ -24,10 +42,13 @@ export default defineConfig({
     baseURL: `https://${HOST}:${PORT}`,
     locale: "ja-JP",
     trace: "retain-on-failure",
-    // 手元専用の CA はブラウザが知らない。証明書の検証は scripts/dev-certs.sh と openssl verify で確かめる
-    ignoreHTTPSErrors: true,
+    // 手元専用の CA はブラウザが知らないので、証明書の公開鍵を信頼させる (CERT_SPKI)
+    ignoreHTTPSErrors: CERT_SPKI === null,
     launchOptions: {
-      args: [`--host-resolver-rules=MAP *.lumorphia.test 127.0.0.1, MAP lumorphia.test 127.0.0.1`],
+      args: [
+        `--host-resolver-rules=MAP *.lumorphia.test 127.0.0.1, MAP lumorphia.test 127.0.0.1`,
+        ...(CERT_SPKI ? [`--ignore-certificate-errors-spki-list=${CERT_SPKI}`] : []),
+      ],
     },
   },
   projects: [{ name: "chromium", use: { browserName: "chromium" } }],
