@@ -65,7 +65,7 @@ node --env-file-if-exists=.env scripts/legacy-ledger.ts --input /path/to/ledger.
 
 `GET /api/me/legacy` は pending または active の本人セッションで使う。返すのは `service` / `handle` / `migrationUrl` だけ。`no-store`。プロバイダーの組と旧 UUID は本人画面にも返さない。
 
-初回設定では旧 handle を選ぶボタンを表示し、設定・ホームでは Prismtone へのリンクを表示する。旧 handle を使っただけでは移行完了にならず、案内と予約は維持する。移行期限は無い。リンク先は `LEGACY_PRISMTONE_MIGRATION_URL` (既定 `https://prismtone.lumorphia.com/settings/migration`)。A2 で実際の画面を公開するときに合わせる。
+初回設定では旧 handle を選ぶボタンを表示し、設定・ホームでは Prismtone へのリンクを表示する。旧 handle を使っただけでは移行完了にならず、案内と予約は維持する。移行期限は無い。リンク先は `LEGACY_PRISMTONE_MIGRATION_URL` (既定 `https://prismtone.lumorphia.com/login`)。Prismtone の `/login` は Lumorphia の認可へ進み、引き継ぎ待ちなら引き継ぎの画面を出す (prismtone ADR-0062)。
 
 `profile` scope の ID トークンと最新の UserInfo は `https://lumorphia.com/legacy_pending` を返す。移行待ちの一致があれば `["prismtone"]`、完了後は `[]`。Scenote はこの claim を見て同じ案内を出し、Prismtone の DB を参照しない。
 

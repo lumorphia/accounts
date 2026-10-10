@@ -125,7 +125,7 @@ describe.skipIf(!url)("legacy ledger HTTP (PostgreSQL)", () => {
         {
           service: "prismtone",
           handle: oldHandle,
-          migrationUrl: "https://prismtone.lumorphia.com/settings/migration",
+          migrationUrl: "https://prismtone.lumorphia.com/login",
         },
       ],
     });

@@ -1,7 +1,10 @@
-# 既存 Caddyfile に import する断片。80/443 を持つ Caddy は増やさない。
-# 既存 proxy を lumorphia-edge に永続的に接続し、Cloudflare の接続元制限を適用してから使う。
+# lumorphia/prismtone の Caddy (80/443 を持つ唯一の Caddy) が読み込むサイトの設定。
+# VPS の CADDY_SITES_DIR に accounts.caddy として置く (prismtone の docs/runbook/deploy.md
+# 「同じ VPS のほかのサービスを Caddy に載せる」)。cloudflare_only と Origin CA の証明書
+# (*.lumorphia.com を含む 1 枚) は prismtone の Caddyfile のものを使う。
 accounts.lumorphia.com {
-    tls /certs/accounts-origin.pem /certs/accounts-origin-key.pem
-    encode zstd gzip
-    reverse_proxy accounts-web:3100
+	import cloudflare_only
+	tls /etc/caddy/certs/origin.pem /etc/caddy/certs/origin.key
+	encode zstd gzip
+	reverse_proxy accounts-web:3100
 }
