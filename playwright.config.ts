@@ -33,7 +33,8 @@ export default defineConfig({
   projects: [{ name: "chromium", use: { browserName: "chromium" } }],
   webServer: [
     {
-      command: "node ../website/scripts/serve.mjs",
+      // トップ (lumorphia/website)。手元は隣のディレクトリ、CI は WEBSITE_DIR にチェックアウトしたもの
+      command: `node ${process.env.WEBSITE_DIR ?? "../website"}/scripts/serve.mjs`,
       url: "https://127.0.0.1:3444/",
       ignoreHTTPSErrors: true,
       reuseExistingServer: !process.env.CI,

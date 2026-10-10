@@ -93,7 +93,16 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
       - if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: pnpm exec playwright install-deps chromium
+      # ブランドの E2E はトップ (lumorphia/website、public) も起動する (ADR-0014)
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: lumorphia/website
+          ref: develop
+          path: website
+          persist-credentials: false
       - run: pnpm e2e
+        env:
+          WEBSITE_DIR: website
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
