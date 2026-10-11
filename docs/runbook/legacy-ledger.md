@@ -57,6 +57,19 @@ node --env-file-if-exists=.env scripts/legacy-ledger.ts --input /path/to/ledger.
 node --env-file-if-exists=.env scripts/legacy-ledger.ts --input /path/to/ledger.json --apply
 ```
 
+本番では web のコンテナの中で動かす ([oidc.md](oidc.md) の「自社クライアントを登録する」と同じ。台帳は標準入力で `/tmp` に渡し、終わったら消す)。
+
+```sh
+read -rs LEGACY_ADMIN_COOKIE && export LEGACY_ADMIN_COOKIE
+docker exec -i accounts-web-1 sh -c 'umask 077 && cat > /tmp/ledger.json' < ledger.json
+docker exec -e LEGACY_ADMIN_COOKIE accounts-web-1 node /repo/scripts/legacy-ledger.ts --input /tmp/ledger.json
+docker exec -e LEGACY_ADMIN_COOKIE accounts-web-1 node /repo/scripts/legacy-ledger.ts --input /tmp/ledger.json --apply
+docker exec accounts-web-1 rm /tmp/ledger.json
+unset LEGACY_ADMIN_COOKIE
+```
+
+本番の migration は起動のたびに当たっているので、`pnpm db:migrate` は要らない。
+
 出力は `applied`、元の件数 `imported`、同じ取り込みの再実行かを示す `repeated`。provider ID・旧 UUID・handle・digest・認証情報は出力しない。エラーは入力内容を表示しない共通のメッセージにする。
 
 同じ入力は、配列や列の順序が違っても再実行できる。移行や物理削除が済んだ台帳を作り直さない。違う入力は拒否する。確認後から確定までに handle の衝突が増えた場合は、確定も全体を rollback する。無関係な利用者の既存 handle を運営者が勝手に変更して通さない。
