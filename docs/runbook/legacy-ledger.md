@@ -61,9 +61,11 @@ node --env-file-if-exists=.env scripts/legacy-ledger.ts --input /path/to/ledger.
 
 ```sh
 read -rs LEGACY_ADMIN_COOKIE && export LEGACY_ADMIN_COOKIE
+# イメージの /repo/scripts からは内部のパッケージが見つからないので、/tmp/run に並べ直す
+docker exec accounts-web-1 sh -c 'rm -rf /tmp/run && mkdir -p /tmp/run/scripts && ln -s /repo/apps /tmp/run/apps && ln -s /repo/apps/app/node_modules /tmp/run/node_modules && cp /repo/scripts/*.ts /tmp/run/scripts/'
 docker exec -i accounts-web-1 sh -c 'umask 077 && cat > /tmp/ledger.json' < ledger.json
-docker exec -e LEGACY_ADMIN_COOKIE accounts-web-1 node /repo/scripts/legacy-ledger.ts --input /tmp/ledger.json
-docker exec -e LEGACY_ADMIN_COOKIE accounts-web-1 node /repo/scripts/legacy-ledger.ts --input /tmp/ledger.json --apply
+docker exec -e LEGACY_ADMIN_COOKIE -w /repo/apps/app accounts-web-1 node /tmp/run/scripts/legacy-ledger.ts --input /tmp/ledger.json
+docker exec -e LEGACY_ADMIN_COOKIE -w /repo/apps/app accounts-web-1 node /tmp/run/scripts/legacy-ledger.ts --input /tmp/ledger.json --apply
 docker exec accounts-web-1 rm /tmp/ledger.json
 unset LEGACY_ADMIN_COOKIE
 ```
