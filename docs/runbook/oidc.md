@@ -39,12 +39,14 @@ node --env-file-if-exists=.env scripts/oidc-client.ts --config /path/to/client.j
 
 出力は秘密を含むので、権限 0600 の新規ファイルに保存する。既存ファイルを上書きしない。
 
-本番では web のコンテナの中で動かす。イメージの `/repo/scripts/` にスクリプトがあり、`DATABASE_URL` などはコンテナの env にある。コンテナは `node` ユーザーで動くので、ファイルは `docker cp` ではなく標準入力で渡す (`docker cp` で入れたファイルは root のものになり、`node` から消せない)。Cookie は画面に出さずに読み、出力はコンテナの `/tmp` に書いてから取り出して消す。
+本番では web のコンテナの中で動かす。イメージの `/repo/scripts/` にスクリプトがあるが、そこからは `@lumorphia-accounts/db` などの内部のパッケージが見つからない (依存は `/repo/apps/app/node_modules` にだけある)。コンテナの `/tmp/run` にスクリプトと `apps`・`node_modules` への結び付けを並べ、`/repo/apps/app` から動かす (2026-10-11 の切り替えで確かめた)。`DATABASE_URL` などはコンテナの env にある。コンテナは `node` ユーザーで動くので、ファイルは `docker cp` ではなく標準入力で渡す (`docker cp` で入れたファイルは root のものになり、`node` から消せない)。Cookie は画面に出さずに読み、出力はコンテナの `/tmp` に書いてから取り出して消す。
 
 ````sh
 read -rs OIDC_ADMIN_COOKIE && export OIDC_ADMIN_COOKIE
+# イメージの /repo/scripts からは内部のパッケージが見つからないので、/tmp/run に並べ直す
+docker exec accounts-web-1 sh -c 'rm -rf /tmp/run && mkdir -p /tmp/run/scripts && ln -s /repo/apps /tmp/run/apps && ln -s /repo/apps/app/node_modules /tmp/run/node_modules && cp /repo/scripts/*.ts /tmp/run/scripts/'
 docker exec -i accounts-web-1 sh -c 'cat > /tmp/client.json' < client.json
-docker exec -e OIDC_ADMIN_COOKIE accounts-web-1 node /repo/scripts/oidc-client.ts --config /tmp/client.json --output /tmp/credentials.json
+docker exec -e OIDC_ADMIN_COOKIE -w /repo/apps/app accounts-web-1 node /tmp/run/scripts/oidc-client.ts --config /tmp/client.json --output /tmp/credentials.json
 (umask 077 && docker exec accounts-web-1 cat /tmp/credentials.json > ./credentials.json)
 docker exec accounts-web-1 rm /tmp/client.json /tmp/credentials.json
 unset OIDC_ADMIN_COOKIE
