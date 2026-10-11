@@ -4,7 +4,7 @@
 
 ## 1. 配置と秘密
 
-VPS の置き場所 (例: `/srv/accounts`、2026-10 は `~/srv/accounts`) に公開判断を終えた main の `compose.prod.yaml` と `.env.*` を置く (git で取ってこなくてよい。doco-cd に登録したあとは doco-cd が取ってくる)。Node のホストインストールは不要。Docker Compose v2 と既存の Caddy・doco-cd を使う。
+VPS の置き場所 (例: `/srv/accounts`、2026-10 は `~/srv/accounts`) に公開判断を終えた main の `compose.prod.yaml` と `.env.*` を置く。復元試験の `compose.restore-test.yaml` ([backup.md](backup.md)) と、滞留の監視の `docker/monitor/` ([monitoring.md](monitoring.md)) も同じ sha のものを写す (git で取ってこなくてよい。doco-cd に登録したあとは doco-cd が取ってくる)。Node のホストインストールは不要。Docker Compose v2 と既存の Caddy・doco-cd を使う。
 
 `.env.production.example` と `.env.backup.example` から、Git に入れない `.env.production` と `.env.backup` を作り、権限を600にする。`REPLACE_WITH` を全て置き換える。パスワードは URL の値としても安全なランダムな文字列を使い、`POSTGRES_PASSWORD` と `DATABASE_URL` を一致させる。AUTH_SECRET は32文字以上の本番専用値を生成し、復元時にも同じ値を使う。Prismtone の秘密を流用しない。
 
