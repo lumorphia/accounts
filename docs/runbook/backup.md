@@ -17,11 +17,27 @@ dc run --rm backup list
 
 公開前と、その後の定期試験で行う。main の承認 sha、dump の時刻、件数だけを非公開の運用記録に残す。本番の DB や Prismtone の DB を復元先に使わない。
 
+1〜4 と 6 は `compose.restore-test.yaml` と、backup の image に入れた `restore-test.sh` で行う。本番の `compose.prod.yaml` の横に、同じ承認 sha の `compose.restore-test.yaml` を置き、`ACCOUNTS_TAG` に本番と同じ sha を渡す。
+
+```sh
+rt() { docker compose --env-file .env.production -p accounts-restore-test -f compose.restore-test.yaml "$@"; }
+rt up --abort-on-container-exit --exit-code-from counts
+rt down -v
+```
+
+- `restore-db` は project `accounts-restore-test` の PostgreSQL 18。データは tmpfs で、外に出ない internal の network だけに置く。公開 Caddy・本番の DB・本番 R2 のアイコン・外部ログインには繋がない
+- `restore` は `.env.backup` のバックアップ専用の認証で最新の dump を取り出し (`RESTORE_KEY=pg/<時刻>.dump` で指定もできる)、`pg_restore --no-owner --no-acl --exit-on-error` で戻す。dump は一時ファイルで、終わると消す。`worker_heartbeats` は空にする。`DATABASE_URL` が `restore-db` を指していなければ止まる
+- `migrate` は承認 sha の app の image で migration を当てる。`.env.production` は読まない
+- `counts` は状態ごとの利用者、連携、セッション、キャラクター、サービス、旧台帳、未配送の通知、未完了の画像削除、OIDC のクライアント、JWKS、心拍の件数だけを出す。ID・handle・メール・受信先は出さない。本番の件数と比べ、結果を運用記録に写す
+- `--env-file .env.production` は `ACCOUNTS_TAG` を読むためだけに使う。どのサービスにも本番の env は渡さない
+
+失敗したら `rt down -v` で作り直してやり直す。手で行うときの手順は次のとおり。
+
 1. バックアップ専用の認証で dump を取り出し、権限600で保管する。
 2. 新しい隔離した Compose project の PostgreSQL 18 に空の DB を作る。公開 Caddy・本番 R2・本番の受信先・本番の外部ログインに接続しない。
 3. `pg_restore --no-owner --no-acl --exit-on-error --dbname=<隔離DB> <dump>`。復元先の URL や秘密をログに書かない。失敗した復元先は試験用に限って作り直す。
 4. 承認 sha の migration を適用する。利用者・連携・キャラクター・旧台帳・outbox・画像削除要求・JWKS の件数を確認する。`worker_heartbeats` は空にして、試験の worker に書かせる。
-5. mock のみを使って OIDC の発行・検証と失効、30日の境界、削除・通知の再送を試す。本番の outbox を本番サービスへ送らない。本番の画像ストレージへ削除を送らない。
+5. (まだ自動にしていない) mock のみを使って OIDC の発行・検証と失効、30日の境界、削除・通知の再送を試す。本番の outbox を本番サービスへ送らない。本番の画像ストレージへ削除を送らない。
 6. dump を削除し、隔離 project の試験用データだけを片付ける。
 
 ## 本当の障害からの復元
