@@ -45,11 +45,25 @@ accounts 専用の doco-cd が main を5分ごとに見て、`.doco-cd.yml` に�
 
 登録の手順 (初回だけ):
 
-1. 最初のリリース (1.0.0) が出て、GHCR に `latest` があることを確かめる (`docker manifest inspect ghcr.io/lumorphia/accounts-app:latest`)。無いうちに登録すると pull に失敗する
+1. 最初のリリース (1.0.0) が出て、GHCR に `latest` があることを確かめる。無いうちに登録すると pull に失敗する。`docker --config` には `config.json` の入ったディレクトリを渡す (認証のファイルが `docker-config.json` という名前なら、一時ディレクトリに `config.json` として結ぶ。認証なしだと、イメージがあっても `unauthorized` になる)
+
+   ```sh
+   d=$(mktemp -d) && ln -s /srv/doco-cd/docker-config.json "$d/config.json" \
+     && docker --config "$d" manifest inspect ghcr.io/lumorphia/accounts-app:latest >/dev/null && echo ok
+   rm -rf "$d"
+   ```
+
 2. `.env.production` から `ACCOUNTS_TAG` の行を消す (残すとその版に固定される)
 3. `docker/doco-cd/compose.yaml` を VPS の `/srv/doco-cd-accounts/compose.yaml` に写し、「ホスト」と書いたパスを実際の場所に書き換える。GHCR の認証は Prismtone の doco-cd の `docker-config.json` を使う
-4. `docker compose -f /srv/doco-cd-accounts/compose.yaml up -d` で起動し、`docker logs -f doco-cd-accounts` で `job completed successfully` を待つ。最初の1回は compose の設定の出どころが変わるので、web と worker が作り直されることがある
-5. `docker exec accounts-web-1 printenv APP_VERSION` がリリースの版になっていること、`/api/health` が200で両 worker が ok なことを確かめる
+4. doco-cd が読む秘密のファイルを、グループを root にして `640` にする。doco-cd のコンテナは root で動くが `cap_drop: ALL` で特権を落としているので、持ち主が自分で `600` のファイルは `permission denied` で読めない (`failed to load compose project: open .../.env.backup: permission denied`)。グループを root にすれば、コンテナの root はグループの権限で読め、持ち主は `sudo` なしで編集できる。`.env.monitor` は cron が読むだけなので `600` のまま
+
+   ```sh
+   sudo chgrp root /srv/accounts/.env.production /srv/accounts/.env.backup
+   chmod 640 /srv/accounts/.env.production /srv/accounts/.env.backup
+   ```
+
+5. `docker compose -f /srv/doco-cd-accounts/compose.yaml up -d` で起動し、`docker logs -f doco-cd-accounts` で `job completed successfully` を待つ。最初の1回は compose の設定の出どころが変わるので、web と worker が作り直されることがある
+6. `docker exec accounts-web-1 printenv APP_VERSION` がリリースの版になっていること、`/api/health` が200で両 worker が ok なことを確かめる
 
 doco-cd を止めているときや、使えないときは、置き場所で `dc pull && dc up -d` を手で打つ。置き場所の `compose.prod.yaml` は main と同じものにしておく。
 
