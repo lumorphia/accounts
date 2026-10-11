@@ -1,0 +1,62 @@
+# 隔離した復元試験 (docs/runbook/backup.md)。本番の compose とは別の project で動かす。
+#   docker compose -p accounts-restore-test -f compose.restore-test.yaml up \
+#     --abort-on-container-exit --exit-code-from counts
+#   docker compose -p accounts-restore-test -f compose.restore-test.yaml down -v
+# 復元先は tmpfs で、終われば消える。公開の Caddy・本番の DB・本番の R2 のアイコンには繋がない。
+name: accounts-restore-test
+
+x-restore-db-url: &restore-db-url postgres://restore@restore-db:5432/restore
+
+services:
+  restore-db:
+    image: postgres:18.6
+    environment:
+      POSTGRES_USER: restore
+      POSTGRES_DB: restore
+      # 外に出ない internal の network だけに置くので、パスワードを持たない
+      POSTGRES_HOST_AUTH_METHOD: trust
+    tmpfs: [/var/lib/postgresql]
+    networks: [restore]
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U restore -d restore]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+  restore:
+    image: ghcr.io/lumorphia/accounts-backup:${ACCOUNTS_TAG:?ACCOUNTS_TAG is required}
+    # バックアップの読み取りだけに使う。DATABASE_URL は下で試験の DB に上書きする
+    env_file: ${ACCOUNTS_BACKUP_ENV_FILE:-.env.backup}
+    environment:
+      DATABASE_URL: *restore-db-url
+      RESTORE_KEY: ${RESTORE_KEY:-}
+    entrypoint: [/usr/local/bin/restore-test.sh]
+    command: [restore]
+    # R2 から取り出すので外への通信が要る
+    networks: [restore, egress]
+    depends_on:
+      restore-db: { condition: service_healthy }
+  migrate:
+    image: ghcr.io/lumorphia/accounts-app:${ACCOUNTS_TAG:?ACCOUNTS_TAG is required}
+    # 本番の .env.production は読まない。承認した sha の migration を当てるだけ
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: *restore-db-url
+    working_dir: /repo
+    command: [node, packages/db/src/migrate.ts]
+    networks: [restore]
+    depends_on:
+      restore: { condition: service_completed_successfully }
+  counts:
+    image: ghcr.io/lumorphia/accounts-backup:${ACCOUNTS_TAG:?ACCOUNTS_TAG is required}
+    environment:
+      DATABASE_URL: *restore-db-url
+    entrypoint: [/usr/local/bin/restore-test.sh]
+    command: [counts]
+    networks: [restore]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+networks:
+  restore:
+    internal: true
+  egress:
