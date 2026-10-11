@@ -2,6 +2,21 @@
 
 Better Auth / oauth-provider は 1.7.7 に固定する (ADR-0003)。discovery は `/api/auth/.well-known/openid-configuration`、JWKS は `/api/auth/jwks`。認可コード + PKCE S256 を使い、refresh token と動的登録は有効にしない。
 
+## 運営者を管理者にする
+
+クライアントの登録 (下) と旧台帳の取り込み ([legacy-ledger.md](legacy-ledger.md)) は、管理者 (`users.role = 'admin'`) のセッションを要求する。管理者にする画面や env は今は無いので、本番の DB を直接書き換える。ADR-0015 の管理画面を作るときに、env の許可リスト (`ADMIN_SUBS`) に移し、`role` は権限に使わなくなる。
+
+1. 運営者が accounts にログインし、初回設定 (handle、規約の同意) を済ませる
+2. VPS で `role` を書き換える。`<handle>` は運営者の handle。`UPDATE 1` と `admin` が返ることを確かめる
+
+   ```sh
+   docker exec -it accounts-postgres-1 sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "update users set role = '\''admin'\'' where handle = '\''<handle>'\'' and status = '\''active'\'' returning role"'
+   ```
+
+3. 外すときは `role = 'user'` に戻す。`role` は env から外しても DB に残るので (ADR-0015)、管理者でなくなった人は必ず戻す
+
+書き換えた日時と理由を運用記録に残す。
+
 ## 自社クライアントを登録する
 
 運営者の active アカウント (`users.role = 'admin'`) でログインし、そのセッションの Cookie を `OIDC_ADMIN_COOKIE` 環境変数に設定する。Cookie をコマンドの引数・ログ・コミットに残さない。スクリプトは DB に直接接続するので、発行元と同じ `DATABASE_URL`、`AUTH_SECRET`、`AUTH_BASE_URL` で動かす。
@@ -12,7 +27,7 @@ Better Auth / oauth-provider は 1.7.7 に固定する (ADR-0003)。discovery �
 {
   "service": "prismtone",
   "redirectUri": "https://prismtone.lumorphia.com/api/auth/callback/lumorphia",
-  "postLogoutRedirectUri": "https://prismtone.lumorphia.com/",
+  "postLogoutRedirectUri": "https://prismtone.lumorphia.com/api/lumorphia/signed-out",
   "backchannelLogoutUri": "https://prismtone.lumorphia.com/api/lumorphia/backchannel-logout",
   "lifecycleUri": "https://prismtone.lumorphia.com/api/lumorphia/account-events"
 }
@@ -22,7 +37,18 @@ Better Auth / oauth-provider は 1.7.7 に固定する (ADR-0003)。discovery �
 node --env-file-if-exists=.env scripts/oidc-client.ts --config /path/to/client.json --output /path/to/credentials.json
 ```
 
-出力は秘密を含むので、権限 0600 の新規ファイルに保存する。既存ファイルを上書きしない。サービスの環境変数には `client_id` と `client_secret` を設定する。運営者のセッションが無い場合・一般利用者の場合は登録できない。
+出力は秘密を含むので、権限 0600 の新規ファイルに保存する。既存ファイルを上書きしない。
+
+本番では web のコンテナの中で動かす。イメージの `/repo/scripts/` にスクリプトがあり、`DATABASE_URL` などはコンテナの env にある。コンテナは `node` ユーザーで動くので、ファイルは `docker cp` ではなく標準入力で渡す (`docker cp` で入れたファイルは root のものになり、`node` から消せない)。Cookie は画面に出さずに読み、出力はコンテナの `/tmp` に書いてから取り出して消す。
+
+````sh
+read -rs OIDC_ADMIN_COOKIE && export OIDC_ADMIN_COOKIE
+docker exec -i accounts-web-1 sh -c 'cat > /tmp/client.json' < client.json
+docker exec -e OIDC_ADMIN_COOKIE accounts-web-1 node /repo/scripts/oidc-client.ts --config /tmp/client.json --output /tmp/credentials.json
+(umask 077 && docker exec accounts-web-1 cat /tmp/credentials.json > ./credentials.json)
+docker exec accounts-web-1 rm /tmp/client.json /tmp/credentials.json
+unset OIDC_ADMIN_COOKIE
+```サービスの環境変数には `client_id` と `client_secret` を設定する。運営者のセッションが無い場合・一般利用者の場合は登録できない。
 
 - redirect / logout URI は HTTPS のホスト名に限る。開発も `*.lumorphia.test` を使う
 - `prismtone` のみ `lumorphia:identities` と移行完了通知用の `lumorphia:legacy` を登録する。全サービスに `lumorphia:characters` を登録する。`scenote` と `facetia` は `openid profile email lumorphia:characters`
@@ -80,3 +106,4 @@ EdDSA (Ed25519)。秘密鍵は `AUTH_SECRET` で保護され、DB に暗号化�
 ## 設定画面からサービスへ戻る
 
 サービスの設定から accounts の設定へ移るときは、`/settings?return_to=<サービスの URL>` で開く (prismtone ADR-0052)。設定画面は `GET /api/return-target` で戻り先を確かめ、登録したサービスのクライアント (`metadata.lumorphia_service` があり、止めていないもの) の redirect URI と同じ origin の https の URL のときだけ「<サービス名> に戻る」を出す。ほかの URL では何も出さない (オープンリダイレクトを作らない)。戻り先はタブの sessionStorage にも覚えるので、連携やログインで設定画面の外へ出ても失わない。
+````
