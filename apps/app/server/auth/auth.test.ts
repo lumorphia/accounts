@@ -24,7 +24,10 @@ describe("social auth configuration", () => {
   });
   it("does not merge users by matching email", () => {
     const auth = createAuth({ db, env: env() });
-    expect(auth.options.account?.accountLinking?.trustedProviders).toEqual([]);
+    const linking = auth.options.account?.accountLinking;
+    expect(linking?.trustedProviders).toEqual([]);
+    // 確認済みのメールでも、ログインで既存の利用者に連携を足さない。連携は設定画面からだけ
+    expect(linking?.disableImplicitLinking).toBe(true);
   });
 
   it("uses the Lumorphia cookie prefix and login error page", () => {
