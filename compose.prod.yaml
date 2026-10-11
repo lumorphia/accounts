@@ -1,6 +1,6 @@
 name: accounts
 x-app: &app
-  image: ghcr.io/lumorphia/accounts-app:${ACCOUNTS_TAG:?ACCOUNTS_TAG is required}
+  image: ghcr.io/lumorphia/accounts-app:${ACCOUNTS_TAG:-latest}
   env_file: ${ACCOUNTS_ENV_FILE:-.env.production}
   environment:
     NODE_ENV: production
@@ -70,7 +70,7 @@ services:
     restart: unless-stopped
 
   backup:
-    image: ghcr.io/lumorphia/accounts-backup:${ACCOUNTS_TAG:?ACCOUNTS_TAG is required}
+    image: ghcr.io/lumorphia/accounts-backup:${ACCOUNTS_TAG:-latest}
     env_file: ${ACCOUNTS_BACKUP_ENV_FILE:-.env.backup}
     networks: [backend]
     depends_on:

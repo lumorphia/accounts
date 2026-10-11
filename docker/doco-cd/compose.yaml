@@ -1,0 +1,56 @@
+# doco-cd (ADR-0016): accounts の main をポーリングし、.doco-cd.yml に従って compose.prod.yaml を入れ替える。
+# Prismtone の doco-cd とは別のコンテナにする (compose の変数 POSTGRES_PASSWORD などを混ぜない)。
+# accounts の stack とも別に、VPS で手で起動する。手順は docs/runbook/deploy.md の「doco-cd」。
+#
+#   docker compose -f /srv/doco-cd-accounts/compose.yaml up -d
+#
+# 「ホスト」と書いたパスは、VPS で実際に置いた場所に書き換える (/srv/accounts、/srv/doco-cd を前提にしている)。
+# 「コンテナの中」と書いたパスは書き換えない
+#
+# 外から入る口は作らない (ports を出さず、WEBHOOK_SECRET / API_SECRET を設定しない)。ポーリングで外へ見に行くだけ。
+# docker.sock を渡すので、doco-cd は Docker を完全に操作できる。版は固定し、Renovate の PR で上げる。
+
+services:
+  doco-cd-accounts:
+    container_name: doco-cd-accounts
+    image: ghcr.io/kimdre/doco-cd:0.123.0
+    restart: unless-stopped
+    # compose の変数展開に使う値 (POSTGRES_PASSWORD、戻すときの ACCOUNTS_TAG)。PASS_ENV で doco-cd から compose に渡す。
+    # 値を変えたら doco-cd を再起動する (起動時の値を使う)
+    env_file: /srv/accounts/.env.production # ホスト
+    environment:
+      TZ: Asia/Tokyo
+      LOG_LEVEL: info
+      PASS_ENV: "true"
+      # compose.prod.yaml が Git に無い秘密を読む場所。doco-cd の中の compose が読むので、コンテナの中のパス
+      ACCOUNTS_ENV_FILE: /srv/accounts/.env.production # コンテナの中
+      ACCOUNTS_BACKUP_ENV_FILE: /srv/accounts/.env.backup # コンテナの中
+      # public リポジトリなので clone に token は要らない
+      POLL_CONFIG: |
+        - url: https://github.com/lumorphia/accounts.git
+          reference: main
+          interval: 5m
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # 左 (ホスト) を書き換え、右 (コンテナの中) は ACCOUNTS_ENV_FILE / ACCOUNTS_BACKUP_ENV_FILE と同じのまま
+      - /srv/accounts/.env.production:/srv/accounts/.env.production:ro
+      - /srv/accounts/.env.backup:/srv/accounts/.env.backup:ro
+      # GHCR の認証 (read:packages の PAT で作った config.json)。Prismtone の doco-cd と同じものでよい。左 (ホスト) を書き換える
+      - /srv/doco-cd/docker-config.json:/root/.docker/config.json:ro
+      - data:/data
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "/doco-cd", "healthcheck"]
+      start_period: 15s
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  data:

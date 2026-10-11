@@ -23,7 +23,7 @@ services:
       timeout: 3s
       retries: 15
   restore:
-    image: ghcr.io/lumorphia/accounts-backup:${ACCOUNTS_TAG:?ACCOUNTS_TAG is required}
+    image: ghcr.io/lumorphia/accounts-backup:${ACCOUNTS_TAG:-latest}
     # バックアップの読み取りだけに使う。DATABASE_URL は下で試験の DB に上書きする
     env_file: ${ACCOUNTS_BACKUP_ENV_FILE:-.env.backup}
     environment:
@@ -36,7 +36,7 @@ services:
     depends_on:
       restore-db: { condition: service_healthy }
   migrate:
-    image: ghcr.io/lumorphia/accounts-app:${ACCOUNTS_TAG:?ACCOUNTS_TAG is required}
+    image: ghcr.io/lumorphia/accounts-app:${ACCOUNTS_TAG:-latest}
     # 本番の .env.production は読まない。承認した sha の migration を当てるだけ
     environment:
       NODE_ENV: production
@@ -47,7 +47,7 @@ services:
     depends_on:
       restore: { condition: service_completed_successfully }
   counts:
-    image: ghcr.io/lumorphia/accounts-backup:${ACCOUNTS_TAG:?ACCOUNTS_TAG is required}
+    image: ghcr.io/lumorphia/accounts-backup:${ACCOUNTS_TAG:-latest}
     environment:
       DATABASE_URL: *restore-db-url
     entrypoint: [/usr/local/bin/restore-test.sh]
