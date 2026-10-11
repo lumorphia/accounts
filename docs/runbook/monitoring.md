@@ -6,9 +6,11 @@ web・DB・worker の生存は公開 `GET /api/health` で確認できる。利�
 
 VPS の外の既存の Uptime Kuma 等に追加する。60秒ごとに `https://accounts.lumorphia.com/api/health` の HTTP 200 と `"ok":true` を確認し、3回連続の失敗・復旧を運営用の通知先に送る。トップと `/terms` の SSR、discovery と JWKS も5分ごとに確認する。証明書の期限14日前を通知する。最初に characters と accounts をそれぞれ停止し、2分後に503、再起動後に200と通知の復旧を実測する。試験は公開制限のある環境で行う。
 
+公開制限 (Cloudflare Access) の間は、外の監視も Access のログイン画面で止まる。`/api/health` だけ通すため、Zero Trust の Access に `accounts.lumorphia.com/api/health` を対象にした別の application を作り、policy の Action を Bypass、Include を Everyone にする。パスが具体的な application が優先されるので、ほかのパスは運営者だけのまま。`/api/health` は利用者の ID や件数を返さない。トップ・`/terms`・discovery・JWKS の監視は、公開制限を外してから足す。
+
 ## 処理の滞留
 
-VPS の既存の監視から `docker/monitor/backlog.sh` を5分ごとに実行する。終了0は全項目0、終了1は滞留または問い合わせ失敗。監視の通知・復旧判定と1時間の同じ通知の抑制に接続する。利用者 ID・handle・画像キー・受信先は通知しない。
+VPS の既存の監視から `docker/monitor/backlog.sh` を5分ごとに実行する。本番の置き場所には compose と env しか置かないので、承認 sha の `docker/monitor/backlog.sh` と `backlog.sql` を同じ相対パスで写す。既定の置き場所は `/srv/accounts` なので、違うときは `ACCOUNTS_ROOT` で渡す (例: `ACCOUNTS_ROOT=$HOME/srv/accounts ~/srv/accounts/docker/monitor/backlog.sh`)。終了0は全項目0、終了1は滞留または問い合わせ失敗。監視の通知・復旧判定と1時間の同じ通知の抑制に接続する。利用者 ID・handle・画像キー・受信先は通知しない。
 
 - 配送と画像削除: 15分より古い未完了を1件から通知。受信先・R2・機能フラグを確認し、失敗中の記録を消さない。
 - 全体 / サービスの物理削除: 30日と1時間を超えたものを通知。worker の停止・バッチの遅れ・ロックを確認する。
