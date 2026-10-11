@@ -1,4 +1,5 @@
-# 公開判断を終えて main と固定の ACCOUNTS_TAG を選んだ後に登録する。
+# 本番のデプロイ (ADR-0016、docs/runbook/deploy.md)。doco-cd は docker/doco-cd/compose.yaml で accounts 専用に立てる。
+# main をポーリングし、compose.prod.yaml の変更か、イメージ (latest) の digest の変化があれば docker compose up する。
 name: accounts
 reference: main
 compose_files:
