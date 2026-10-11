@@ -91,7 +91,7 @@ describe.skipIf(!databaseUrl)("me routes (PostgreSQL)", () => {
       payload: {
         handle: `joined_${stamp}`,
         name: "New Member",
-        consent: { termsVersion: "1.0", privacyVersion: "1.0", ageConfirmed: true },
+        consent: { termsVersion: "1.1", privacyVersion: "1.1", ageConfirmed: true },
       },
     });
     expect(onboard.statusCode, onboard.body).toBe(200);
@@ -105,7 +105,7 @@ describe.skipIf(!databaseUrl)("me routes (PostgreSQL)", () => {
           payload: {
             handle: `again_${stamp}`,
             name: "Again",
-            consent: { termsVersion: "1.0", privacyVersion: "1.0", ageConfirmed: true },
+            consent: { termsVersion: "1.1", privacyVersion: "1.1", ageConfirmed: true },
           },
         })
       ).statusCode,

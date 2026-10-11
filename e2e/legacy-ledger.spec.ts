@@ -79,7 +79,7 @@ test("keeps an unrelated new user out of the reserved handle and does not show a
       body: JSON.stringify({
         handle,
         name: "Test",
-        consent: { termsVersion: "1.0", privacyVersion: "1.0", ageConfirmed: true },
+        consent: { termsVersion: "1.1", privacyVersion: "1.1", ageConfirmed: true },
       }),
     });
     return res.status;
