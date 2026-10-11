@@ -51,6 +51,7 @@ restore_file() {
 counts() {
   # 件数だけを出す。ID・handle・メール・受信先は出さない
   psql -X --dbname="$DATABASE_URL" -v ON_ERROR_STOP=1 -At <<'SQL'
+SELECT 'users=' || count(*) FROM users;
 SELECT 'users_' || status || '=' || count(*) FROM users GROUP BY status ORDER BY status;
 SELECT 'accounts=' || count(*) FROM accounts;
 SELECT 'sessions=' || count(*) FROM sessions;
