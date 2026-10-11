@@ -10,7 +10,17 @@ VPS の外の既存の Uptime Kuma 等に追加する。60秒ごとに `https://
 
 ## 処理の滞留
 
-VPS の既存の監視から `docker/monitor/backlog.sh` を5分ごとに実行する。本番の置き場所には compose と env しか置かないので、承認 sha の `docker/monitor/backlog.sh` と `backlog.sql` を同じ相対パスで写す。既定の置き場所は `/srv/accounts` なので、違うときは `ACCOUNTS_ROOT` で渡す (例: `ACCOUNTS_ROOT=$HOME/srv/accounts ~/srv/accounts/docker/monitor/backlog.sh`)。終了0は全項目0、終了1は滞留または問い合わせ失敗。監視の通知・復旧判定と1時間の同じ通知の抑制に接続する。利用者 ID・handle・画像キー・受信先は通知しない。
+VPS の既存の監視から `docker/monitor/backlog.sh` を5分ごとに実行する。本番の置き場所には compose と env しか置かないので、承認 sha の `docker/monitor/backlog.sh` と `backlog.sql` を同じ相対パスで写す。既定の置き場所は `/srv/accounts` なので、違うときは `ACCOUNTS_ROOT` で渡す (例: `ACCOUNTS_ROOT=$HOME/srv/accounts ~/srv/accounts/docker/monitor/backlog.sh`)。終了0は全項目0、終了1は滞留または問い合わせ失敗。利用者 ID・handle・画像キー・受信先は通知しない。
+
+通知は `docker/monitor/notify.sh` が Discord に送る。同じ知らせは1時間に1回で、直ったら「復旧しました」を1回送る。送れなかったときは記録せず、次の回に送り直す。webhook は運営の通知チャンネルのもの (Prismtone と同じでよい) を、置き場所の `.env.monitor` (権限600、`DISCORD_WEBHOOK_URL=...` の1行) に置く。利用者の cron に足す (`crontab -e`)。
+
+```sh
+ACCOUNTS_ROOT=/home/<user>/srv/accounts
+*/5 * * * * $ACCOUNTS_ROOT/docker/monitor/notify.sh backlog >> $HOME/accounts-monitor.log 2>&1
+17 * * * * $ACCOUNTS_ROOT/docker/monitor/notify.sh backup >> $HOME/accounts-monitor.log 2>&1
+```
+
+ログは1回1行 (`backlog=ok -`、`backup=ok 3h` など)。手で試すときは、cron と同じ行をそのまま流す。`REPEAT_SECONDS=0` で抑制を外せる。
 
 - 配送と画像削除: 15分より古い未完了を1件から通知。受信先・R2・機能フラグを確認し、失敗中の記録を消さない。
 - 全体 / サービスの物理削除: 30日と1時間を超えたものを通知。worker の停止・バッチの遅れ・ロックを確認する。
@@ -20,7 +30,7 @@ VPS の既存の監視から `docker/monitor/backlog.sh` を5分ごとに実行�
 
 ## バックアップとリソース
 
-backup コンテナの生存だけで成功とは扱わない。非公開バケットの新しい dump の時刻を別の監視から確認し、26時間以上新しいものが無ければ通知する。30日で消えることと、定期的な復元試験も確認する。
+backup コンテナの生存だけで成功とは扱わない。非公開バケットの新しい dump の時刻を確認し、26時間以上新しいものが無ければ通知する (`notify.sh backup` を1時間ごと。`backup list` を依存なしで回し、dump の名前の時刻を読む)。30日で消えることと、定期的な復元試験も確認する。
 
 VPS は Prismtone の既存の CPU・メモリ・ディスク監視に accounts のコンテナを含める。ディスク85%、メモリ90%、CPU80%が10分継続を目安にする。DB のポートは監視のためにも公開しない。ログは Docker の10MB×3本で容量を抑える。
 
