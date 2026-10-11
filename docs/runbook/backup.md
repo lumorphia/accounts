@@ -21,7 +21,8 @@ dc run --rm backup list
 
 ```sh
 rt() { docker compose --env-file .env.production -p accounts-restore-test -f compose.restore-test.yaml "$@"; }
-rt up --abort-on-container-exit --exit-code-from counts
+rt run --rm counts
+rt logs --no-log-prefix restore migrate
 rt down -v
 ```
 
@@ -29,6 +30,7 @@ rt down -v
 - `restore` は `.env.backup` のバックアップ専用の認証で最新の dump を取り出し (`RESTORE_KEY=pg/<時刻>.dump` で指定もできる)、`pg_restore --no-owner --no-acl --exit-on-error` で戻す。dump は一時ファイルで、終わると消す。`worker_heartbeats` は空にする。`DATABASE_URL` が `restore-db` を指していなければ止まる
 - `migrate` は承認 sha の app の image で migration を当てる。`.env.production` は読まない
 - `counts` は状態ごとの利用者、連携、セッション、キャラクター、サービス、旧台帳、未配送の通知、未完了の画像削除、OIDC のクライアント、JWKS、心拍の件数だけを出す。ID・handle・メール・受信先は出さない。本番の件数と比べ、結果を運用記録に写す
+- `up --abort-on-container-exit` は使わない。`restore` が終わった時点で `restore-db` まで止まり、`migrate` が `restore-db` を引けずに落ちる。`run --rm counts` は依存を順に待ってから件数を出す
 - `--env-file .env.production` は `ACCOUNTS_TAG` を読むためだけに使う。どのサービスにも本番の env は渡さない
 
 失敗したら `rt down -v` で作り直してやり直す。手で行うときの手順は次のとおり。
