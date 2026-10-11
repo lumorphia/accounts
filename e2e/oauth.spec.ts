@@ -50,4 +50,30 @@ test.describe("social OAuth", () => {
       expect(accounts.accounts[0].displayName).toBeTruthy();
     });
   }
+
+  test("a second provider with the same email does not join the first account", async ({
+    page,
+  }) => {
+    const stamp = Date.now();
+    const email = `same-${stamp}@test.example.invalid`;
+    await page.request.post(`${MOCK_OAUTH}/_e2e/discord`, {
+      data: { id: `${stamp}4`, name: "Same Discord", email },
+    });
+    await page.request.post(`${MOCK_OAUTH}/_e2e/google`, {
+      data: { id: `${stamp}5`, name: "Same Google", email },
+    });
+    await approveAuthorize(page, "discord");
+    await approveAuthorize(page, "google");
+    await gotoHydrated(page, "/login");
+    await page.getByRole("button", { name: "Discord でログイン" }).click();
+    await expect(page.getByRole("heading", { name: "アカウントを設定" })).toBeVisible();
+
+    await gotoHydrated(page, "/login");
+    await page.getByRole("button", { name: "Google でログイン" }).click();
+    await page.waitForURL((url) => url.pathname === "/login" && url.searchParams.has("error"));
+    await expect(page.getByRole("alert")).toContainText("前と同じ方法でログイン");
+
+    const accounts = await page.evaluate(async () => (await fetch("/api/me/accounts")).json());
+    expect(accounts.accounts.map((a: { providerId: string }) => a.providerId)).toEqual(["discord"]);
+  });
 });

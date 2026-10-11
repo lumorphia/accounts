@@ -69,7 +69,14 @@ export function createAuth({ db, env, miauthFetch, mastodonFetch }: AuthDeps) {
     emailAndPassword: { enabled: false },
     socialProviders,
     account: {
-      accountLinking: { enabled: true, trustedProviders: [], allowDifferentEmails: true },
+      // メールでは突き合わせない (plan.md)。Better Auth は確認済みのメールが同じだとログインで
+      // 既存の利用者に連携を足すので止める。連携は設定画面の link-social からだけ
+      accountLinking: {
+        enabled: true,
+        trustedProviders: [],
+        allowDifferentEmails: true,
+        disableImplicitLinking: true,
+      },
       additionalFields: {
         displayName: { type: "string", required: false, input: false },
         imageUrl: { type: "string", required: false, input: false },

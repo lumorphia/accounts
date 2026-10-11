@@ -26,9 +26,18 @@ export function loader() {
   };
 }
 
+/** onAPIError の errorURL で /login?error=... に戻る (Better Auth の OAuth のエラーの code) */
+function callbackError(code: string | null): string | null {
+  if (!code) return null;
+  if (code === "account_not_linked")
+    return "このメールアドレスは、別のログイン方法の Lumorphia アカウントで使われています。前と同じ方法でログインし、設定から連携を追加してください。";
+  return "ログインできませんでした。もう一度お試しください。";
+}
+
 export default function Login({ loaderData }: Route.ComponentProps) {
   const [params] = useSearchParams();
   const next = loginNext(params);
+  const notice = callbackError(params.get("error"));
   const [handle, setHandle] = useState("tester");
   const [misskeyHost, setMisskeyHost] = useState("");
   const [mastodonHost, setMastodonHost] = useState("");
@@ -230,9 +239,9 @@ export default function Login({ loaderData }: Route.ComponentProps) {
             </form>
           </details>
         )}
-        {error && (
+        {(error ?? notice) && (
           <p role="alert" className="form-error">
-            {error}
+            {error ?? notice}
           </p>
         )}
       </section>
