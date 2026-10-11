@@ -28,7 +28,7 @@ accounts.lumorphia.com   Lumorphia アカウント (lumorphia/accounts)
   └─ API                 キャラクター一覧など、サービスが読むもの
         │
   ┌─────┴─────┐
-Prismtone    Scenote     自分のセッション、投稿、お気に入り、規約の同意、BAN、bio
+Prismtone    Scenote     自分のセッション、投稿、お気に入り、規約の同意、投稿の管理、bio
 ```
 
 - 各サービスは OIDC の利用側 (Relying Party)。セッションはサービスごとに持ち、DB も別のまま (Scenote ADR-0002)
@@ -47,7 +47,8 @@ Prismtone    Scenote     自分のセッション、投稿、お気に入り、�
 | キャラクターと Lodestone の確認        | Lumorphia | Lodestone を見に行くのを 1 か所に (Prismtone ADR-0013 の「取得は最小限」) |
 | bio、投稿の既定値 (投稿者を非公開など) | サービス  | サービスで意味が違う                                                      |
 | 規約の同意                             | 両方      | Lumorphia アカウントの規約と、サービスの規約は別                          |
-| 管理者、BAN                            | サービス  | 片方での BAN が、もう片方を止めない                                       |
+| 利用停止 (アカウント)                  | Lumorphia | 全サービスを一度に止める (ADR-0015)                                       |
+| 投稿の非表示・削除、サービスの管理者   | サービス  | 投稿はサービスのデータ                                                    |
 | 退会                                   | 両方      | 「このサービスだけ」と「Lumorphia から」の 2 種類                         |
 
 ## 2. Prismtone からの移行

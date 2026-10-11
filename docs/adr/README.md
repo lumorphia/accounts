@@ -15,7 +15,7 @@
 | [0011](0011-explicit-recovery.md)                           | 退会からの復旧は、ログインではなく本人の操作で行う                                  |
 | [0012](0012-service-identity-and-authorize-side-effects.md) | サービスは metadata で見分け、状態の変更は認可の入口で行う                          |
 | [0013](0013-characters-for-services-and-migration.md)       | サービスに未認証のキャラクターも渡し、引き継ぎでキャラクターを取り込む              |
-
-| [0014](0014-brand-and-website-navigation.md) | ブランド画面とトップへのログイン導線、表示用セッションの限定共有 |
+| [0014](0014-brand-and-website-navigation.md)                | ブランド画面とトップへのログイン導線、表示用セッションの限定共有                    |
+| [0015](0015-account-suspension-and-admin.md)                | 利用停止はアカウント単位で持ち、管理画面は二重に守って操作を記録する                |
 
 本文中の「prismtone ADR-NNNN」は lumorphia/prismtone の ADR を指す。全体の計画は [plan.md](../plan.md)。
