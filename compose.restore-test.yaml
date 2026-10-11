@@ -1,6 +1,6 @@
 # 隔離した復元試験 (docs/runbook/backup.md)。本番の compose とは別の project で動かす。
-#   docker compose -p accounts-restore-test -f compose.restore-test.yaml up \
-#     --abort-on-container-exit --exit-code-from counts
+#   docker compose -p accounts-restore-test -f compose.restore-test.yaml run --rm counts
+#   docker compose -p accounts-restore-test -f compose.restore-test.yaml logs restore migrate
 #   docker compose -p accounts-restore-test -f compose.restore-test.yaml down -v
 # 復元先は tmpfs で、終われば消える。公開の Caddy・本番の DB・本番の R2 のアイコンには繋がない。
 name: accounts-restore-test
