@@ -1,13 +1,15 @@
 # A1 の公開判断
 
-2026年10月7日時点: リポジトリ側の公開準備を進めている。本番公開・main の昇格・doco-cd の登録・実データの取り込みは未実施。A2 の Prismtone 移行は別の公開操作で、今の Prismtone の新規登録はここでは止めない。
+2026年10月11日に公開した。f821444 で下の項目を確かめ、運営者が承認して Cloudflare Access を外した。記録は非公開の運用記録にある。公開の後のリリースと doco-cd は ADR-0016 と [deploy.md](deploy.md)。A2 の Prismtone 移行は別の公開操作で、Prismtone の新規登録はここでは止めない。
+
+次にサービスを足すときや、大きな変更で公開を止めて確かめ直すときも、この項目を使う。
 
 ## 公開を決める前に確認するもの
 
 - 承認する main の SHA と、同じ sha の app / backup イメージ。develop の検証と main の公開を混同しない。
 - 規約1.0・ポリシー1.0の本文、運営者と問い合わせ先、各サービスの規約との分担。国外の処理を含め、Cloudflare / Sentry / 外部認証の実際の契約と設定が説明と一致すること。
 - accounts の host の HTTPS、Cloudflare Full (strict) と直通拒否、Caddy の既存 Prismtone への影響が無いこと、Cookie が accounts の host に限られること。
-- 5種類の実プロバイダーのログイン、連携・解除、初回の2文書と年齢の確認。active 利用者の `terms_version`、`privacy_version`、`legal_accepted_at` に欠如が無いこと。テスト用の dev ログインを持ち込まないこと。
+- 実プロバイダー (Discord・Google・Misskey・Mastodon の4種類) のログイン、連携・解除、初回の2文書と年齢の確認。active 利用者の `terms_version`、`privacy_version`、`legal_accepted_at` に欠如が無いこと。テスト用の dev ログインを持ち込まないこと。
 - OIDC discovery / JWKS、署名の検証、PKCE、失効と logout。初回公開時は RP を無闇に登録しない。Prismtone の本番 client と受信の DB adapter は A2 で接続する。
 - 本番専用 R2 のアイコン保存・削除。Lodestone の User-Agent と本人のキャラクター確認。両 feature flag が1で、停止時の503・通知・復旧を実測したこと。
 - 退会と30日未満の復旧、期限ちょうどの拒否、画像が戻らないこと、配送停止後の再送、滞留の通知。
