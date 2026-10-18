@@ -12,16 +12,15 @@ VPS の置き場所 (例: `/srv/accounts`、2026-10 は `~/srv/accounts`) に ma
 
 固定プロバイダーは `https://accounts.lumorphia.com/api/auth/callback/discord`（Google は google、X は twitter）を登録する。各組の ID / secret を設定する。Misskey / Mastodon はホスト別の連携。Lodestone の User-Agent にサービス名・版・連絡先を設定する。
 
-## 2. 共有する Caddy
+## 2. 入口 (lumorphia/edge)
 
-80/443 を持つ Caddy は lumorphia/prismtone のもの 1 つだけで、accounts もそこで受ける (prismtone の docs/runbook/deploy.md「同じ VPS のほかのサービスを Caddy に載せる」)。
+80/443 を持つ Caddy は [lumorphia/edge](https://github.com/lumorphia/edge) の 1 つだけ。全サービスのサイトは edge の `Caddyfile` にまとめてあり、accounts のサイト (`accounts.lumorphia.com` → `accounts-web:3100`) も入っている (edge の ADR-0001)。はじめは Prismtone の Caddy が `*.caddy` で載せていたが、2026-10-18 の相棒の指摘で edge に分けた。accounts の側で Caddy の設定を置く手順は無い。
 
-- 共有のネットワーク `lumorphia-edge` を `docker network create lumorphia-edge` で作る。accounts の web はそこに `accounts-web` として出る (`compose.prod.yaml`)
-- prismtone の proxy は `lumorphia-edge` にもつながり、`CADDY_SITES_DIR` の `*.caddy` を読み込む。そこに `docker/Caddyfile.accounts` を `accounts.caddy` として置く
-- 証明書は prismtone の Caddy にある Cloudflare Origin CA の 1 枚 (`lumorphia.com` と `*.lumorphia.com`) をそのまま使う。Cloudflare の IP 以外を拒む `cloudflare_only` も prismtone の Caddyfile のものを使う
+- 共有のネットワーク `lumorphia-edge`。accounts の web はそこに `accounts-web` として出る (`compose.prod.yaml`)
+- 証明書 (Cloudflare Origin CA の 1 枚、`lumorphia.com` と `*.lumorphia.com`) と、Cloudflare の IP 以外を拒む `cloudflare_only` も edge にある
 - Cloudflare の DNS proxy と Full (strict) を確かめる。直通が拒否されるまでは `CLIENT_IP_HEADER=cf-connecting-ip` を使わない
 
-Caddy の設定は `caddy validate` で確かめてから reload する。公開前は Cloudflare Access で運営者だけがアクセスできるようにしていた (Zero Trust の Self-hosted アプリケーションで、運営者のメールアドレスだけを Allow。2026-10-11 に外した)。障害で新規アクセスを止めるときも同じ方法を使える。accounts 側は 80/443 も 3100 も DB のポートもホストに公開しない。
+公開前は Cloudflare Access で運営者だけがアクセスできるようにしていた (Zero Trust の Self-hosted アプリケーションで、運営者のメールアドレスだけを Allow。2026-10-11 に外した)。障害で新規アクセスを止めるときも同じ方法を使える。accounts 側は 80/443 も 3100 も DB のポートもホストに公開しない。
 
 ## 3. リリースとイメージ
 
