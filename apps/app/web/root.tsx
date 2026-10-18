@@ -11,6 +11,7 @@ import {
 import type { Route } from "./+types/root";
 import "./app.css";
 import { BrandHeader } from "./components/brand-header.tsx";
+import { CONTACT_FORM_URL } from "./lib/contact.ts";
 
 /** 全ルート共通の公開設定。プロフィールとセッションは本人APIで読む。 */
 export async function loader() {
@@ -55,7 +56,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <a href="/privacy" className="underline">
                 プライバシーポリシー
               </a>
-              <a href="https://forms.gle/cn7FLf8W8gqehL977" className="underline">
+              <a href={CONTACT_FORM_URL} className="underline">
                 お問い合わせ
               </a>
             </nav>

@@ -11,7 +11,7 @@ describe.skipIf(!url)("onboarding legal consent", () => {
   afterAll(async () => {
     await database?.close();
   });
-  const consent = { termsVersion: "1.1", privacyVersion: "1.1", ageConfirmed: true };
+  const consent = { termsVersion: "1.2", privacyVersion: "1.2", ageConfirmed: true };
   async function pending() {
     const suffix = crypto.randomUUID().slice(0, 8);
     const [user] = await database.db
@@ -53,8 +53,8 @@ describe.skipIf(!url)("onboarding legal consent", () => {
       await database.db.query.users.findFirst({ where: eq(schema.users.id, user.id) }),
     ).toMatchObject({
       status: "active",
-      termsVersion: "1.1",
-      privacyVersion: "1.1",
+      termsVersion: "1.2",
+      privacyVersion: "1.2",
       legalAcceptedAt: now,
     });
   });

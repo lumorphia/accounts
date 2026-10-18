@@ -99,7 +99,7 @@ describe.skipIf(!url)("legacy account ledger (PostgreSQL)", () => {
       completeOnboarding(database.db, other.id, {
         handle: a.handle,
         name: "Test",
-        consent: { termsVersion: "1.1", privacyVersion: "1.1", ageConfirmed: true },
+        consent: { termsVersion: "1.2", privacyVersion: "1.2", ageConfirmed: true },
       }),
     ).rejects.toMatchObject({ code: "conflict" });
   });
@@ -110,7 +110,7 @@ describe.skipIf(!url)("legacy account ledger (PostgreSQL)", () => {
     await completeOnboarding(database.db, owner.id, {
       handle: a.handle,
       name: "Test",
-      consent: { termsVersion: "1.1", privacyVersion: "1.1", ageConfirmed: true },
+      consent: { termsVersion: "1.2", privacyVersion: "1.2", ageConfirmed: true },
     });
     expect(
       (await database.db.query.users.findFirst({ where: eq(schema.users.id, owner.id) }))?.handle,

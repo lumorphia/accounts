@@ -51,7 +51,7 @@ describe.skipIf(!url)("user profiles", () => {
     await completeOnboarding(db, pendingId, {
       handle: `new_${stamp}`,
       name: "  New User  ",
-      consent: { termsVersion: "1.1", privacyVersion: "1.1", ageConfirmed: true },
+      consent: { termsVersion: "1.2", privacyVersion: "1.2", ageConfirmed: true },
     });
     expect(await getProfile(db, pendingId)).toMatchObject({
       handle: `new_${stamp}`,
