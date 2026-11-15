@@ -16,7 +16,7 @@
     "@lumorphia-accounts/db": "workspace:*",
     "@lumorphia/media": "1.0.0",
     "@lumorphia/storage": "1.0.0",
-    "node-html-parser": "^9.0.4",
-    "pg-boss": "^12.37.0"
+    "node-html-parser": "^9.0.7",
+    "pg-boss": "^12.38.2"
   }
 }
