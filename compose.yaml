@@ -20,7 +20,7 @@ services:
   # 開発の https (docker/Caddyfile.dev)。https://accounts.lumorphia.test:8443 を、手元の開発サーバー (3100) へ流す。
   # 手元の 127.0.0.1:3100 に届くよう host のネットワークで動かす
   caddy:
-    image: caddy:2.11.6
+    image: caddy:2.11.9
     network_mode: host
     volumes:
       - ./docker/Caddyfile.dev:/etc/caddy/Caddyfile:ro
