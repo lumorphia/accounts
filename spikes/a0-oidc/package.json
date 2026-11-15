@@ -3,9 +3,9 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@better-auth/oauth-provider": "1.7.7",
-    "better-auth": "1.7.7",
-    "jose": "6",
-    "undici": "7"
+    "@better-auth/oauth-provider": "1.7.23",
+    "better-auth": "1.7.23",
+    "jose": "6.2.17",
+    "undici": "7.30.2"
   }
 }
