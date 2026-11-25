@@ -11,7 +11,7 @@ describe.skipIf(!url)("onboarding legal consent", () => {
   afterAll(async () => {
     await database?.close();
   });
-  const consent = { termsVersion: "1.1", privacyVersion: "1.1", ageConfirmed: true };
+  const consent = { termsVersion: "1.1", privacyVersion: "1.2", ageConfirmed: true };
   async function pending() {
     const suffix = crypto.randomUUID().slice(0, 8);
     const [user] = await database.db
@@ -23,7 +23,7 @@ describe.skipIf(!url)("onboarding legal consent", () => {
   for (const [label, value] of [
     ["missing consent", undefined],
     ["an outdated terms version", { ...consent, termsVersion: "1.0" }],
-    ["an outdated privacy version", { ...consent, privacyVersion: "1.0" }],
+    ["an outdated privacy version", { ...consent, privacyVersion: "1.1" }],
     ["an unconfirmed age", { ...consent, ageConfirmed: false }],
   ] as const) {
     it(`rejects ${label} without activating the account`, async () => {
@@ -54,7 +54,7 @@ describe.skipIf(!url)("onboarding legal consent", () => {
     ).toMatchObject({
       status: "active",
       termsVersion: "1.1",
-      privacyVersion: "1.1",
+      privacyVersion: "1.2",
       legalAcceptedAt: now,
     });
   });
